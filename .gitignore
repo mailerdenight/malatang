@@ -1,0 +1,17 @@
+.DS_Store
+
+# Xcode user/machine state
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.build/
+
+# CI output and runtime state
+artifacts/
+logs/*.log
+.ci-runtime/
+
+# Local credentials/configuration
+Scripts/config.env
+*.p8
+
