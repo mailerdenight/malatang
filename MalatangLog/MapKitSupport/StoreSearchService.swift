@@ -39,10 +39,12 @@ final class StoreSearchService {
     }
 
     private(set) var state: State = .idle
-    private var currentSearch: MKLocalSearch?
+    private var currentSearches: [MKLocalSearch] = []
+    private var searchGeneration = UUID()
 
-    /// 麻辣湯の店を探しやすいよう、既定のキーワードを補う。
+    /// 漢字名とカタカナ名の両方を検索し、表記が違う店舗も拾う。
     static let defaultKeyword = "麻辣湯"
+    static let defaultKeywords = ["麻辣湯", "マーラータン"]
 
     func searchNearby(coordinate: CLLocationCoordinate2D, keyword: String = defaultKeyword) {
         let region = MKCoordinateRegion(
@@ -51,7 +53,7 @@ final class StoreSearchService {
             longitudinalMeters: 3_000
         )
         perform(
-            keyword: keyword.isEmpty ? Self.defaultKeyword : keyword,
+            keywords: keywords(for: keyword),
             region: region,
             center: coordinate,
             maximumDistance: 3_500
@@ -79,7 +81,7 @@ final class StoreSearchService {
         ) * 1.15
 
         perform(
-            keyword: keyword.isEmpty ? Self.defaultKeyword : keyword,
+            keywords: keywords(for: keyword),
             region: region,
             center: center,
             maximumDistance: radius
@@ -98,12 +100,13 @@ final class StoreSearchService {
         } else {
             region = nil
         }
-        perform(keyword: trimmed, region: region)
+        perform(keywords: keywords(for: trimmed), region: region)
     }
 
     func cancel() {
-        currentSearch?.cancel()
-        currentSearch = nil
+        currentSearches.forEach { $0.cancel() }
+        currentSearches.removeAll()
+        searchGeneration = UUID()
     }
 
     func reset() {
@@ -112,7 +115,7 @@ final class StoreSearchService {
     }
 
     private func perform(
-        keyword: String,
+        keywords: [String],
         region: MKCoordinateRegion?,
         center: CLLocationCoordinate2D? = nil,
         maximumDistance: CLLocationDistance? = nil
@@ -120,43 +123,99 @@ final class StoreSearchService {
         cancel()
         state = .searching
 
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = keyword
-        request.resultTypes = [.pointOfInterest]
-        if let region { request.region = region }
+        let generation = UUID()
+        searchGeneration = generation
+        var remaining = keywords.count
+        var receivedResponse = false
+        var collectedMapItems: [MKMapItem] = []
 
-        let search = MKLocalSearch(request: request)
-        currentSearch = search
-        search.start { [weak self] response, _ in
-            guard let self else { return }
-            DispatchQueue.main.async {
-                guard let response else {
-                    self.state = .failed("店舗を検索できませんでした。通信状態と検索語を確認してください。")
-                    return
-                }
-                let centerLocation = center.map {
-                    CLLocation(latitude: $0.latitude, longitude: $0.longitude)
-                }
-                let mapItems = response.mapItems.filter { item in
-                    guard
-                        let centerLocation,
-                        let maximumDistance,
-                        let resultLocation = item.placemark.location
-                    else {
-                        return true
+        for keyword in keywords {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = keyword
+            request.resultTypes = [.pointOfInterest]
+            if let region { request.region = region }
+
+            let search = MKLocalSearch(request: request)
+            currentSearches.append(search)
+            search.start { [weak self] response, _ in
+                guard let self else { return }
+                DispatchQueue.main.async {
+                    guard self.searchGeneration == generation else { return }
+                    if let response {
+                        receivedResponse = true
+                        collectedMapItems.append(contentsOf: response.mapItems)
                     }
-                    return centerLocation.distance(from: resultLocation) <= maximumDistance
-                }
-                let items = mapItems.map { item -> StoreSearchResult in
-                    StoreSearchResult(
-                        name: item.name ?? "名称不明",
-                        address: Self.formattedAddress(item.placemark),
-                        latitude: item.placemark.location?.coordinate.latitude,
-                        longitude: item.placemark.location?.coordinate.longitude
+                    remaining -= 1
+                    guard remaining == 0 else { return }
+
+                    self.currentSearches.removeAll()
+                    guard receivedResponse else {
+                        self.state = .failed("店舗を検索できませんでした。通信状態と検索語を確認してください。")
+                        return
+                    }
+                    let items = Self.makeResults(
+                        from: collectedMapItems,
+                        center: center,
+                        maximumDistance: maximumDistance
                     )
+                    self.state = items.isEmpty ? .empty : .results(items)
                 }
-                self.state = items.isEmpty ? .empty : .results(items)
             }
+        }
+    }
+
+    private func keywords(for keyword: String) -> [String] {
+        let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed == Self.defaultKeyword {
+            return Self.defaultKeywords
+        }
+        return [trimmed]
+    }
+
+    private static func makeResults(
+        from mapItems: [MKMapItem],
+        center: CLLocationCoordinate2D?,
+        maximumDistance: CLLocationDistance?
+    ) -> [StoreSearchResult] {
+        let centerLocation = center.map {
+            CLLocation(latitude: $0.latitude, longitude: $0.longitude)
+        }
+        var seen = Set<String>()
+
+        let results = mapItems.compactMap { item -> StoreSearchResult? in
+            if let centerLocation,
+               let maximumDistance,
+               let resultLocation = item.placemark.location,
+               centerLocation.distance(from: resultLocation) > maximumDistance {
+                return nil
+            }
+
+            let name = item.name ?? "名称不明"
+            let coordinate = item.placemark.location?.coordinate
+            let key = [
+                name.folding(options: [.caseInsensitive, .widthInsensitive], locale: .current),
+                coordinate.map { String(format: "%.5f", $0.latitude) } ?? "",
+                coordinate.map { String(format: "%.5f", $0.longitude) } ?? ""
+            ].joined(separator: "|")
+            guard seen.insert(key).inserted else { return nil }
+
+            return StoreSearchResult(
+                name: name,
+                address: formattedAddress(item.placemark),
+                latitude: coordinate?.latitude,
+                longitude: coordinate?.longitude
+            )
+        }
+
+        guard let centerLocation else { return results }
+        return results.sorted {
+            let lhs = $0.coordinate.map {
+                centerLocation.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude))
+            } ?? .greatestFiniteMagnitude
+            let rhs = $1.coordinate.map {
+                centerLocation.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude))
+            } ?? .greatestFiniteMagnitude
+            return lhs < rhs
         }
     }
 
