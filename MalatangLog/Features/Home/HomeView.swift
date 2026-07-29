@@ -241,6 +241,18 @@ struct ServingHighlightCard: View {
         VStack(alignment: .leading, spacing: 8) {
             ServingThumbnail(photoID: serving.photoID)
                 .frame(width: 184, height: 124)
+                .overlay(alignment: .topTrailing) {
+                    if SampleDataService.isSample(serving) {
+                        Text("sample")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.72))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(.black.opacity(0.18), in: Capsule())
+                            .padding(8)
+                            .accessibilityHidden(true)
+                    }
+                }
             Text(serving.storeDisplayName)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
