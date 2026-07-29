@@ -7,7 +7,7 @@ struct RootView: View {
     @State private var showingRecordSheet = false
 
     enum Tab: String, Hashable {
-        case home, map, catalog, analytics
+        case home, map, album, analytics
     }
 
     init() {
@@ -27,9 +27,9 @@ struct RootView: View {
                 .tabItem { Label("地図", systemImage: "mappin.and.ellipse") }
                 .tag(Tab.map)
 
-            CatalogView()
-                .tabItem { Label("一覧", systemImage: "list.bullet.rectangle") }
-                .tag(Tab.catalog)
+            AlbumView()
+                .tabItem { Label("アルバム", systemImage: "photo.on.rectangle") }
+                .tag(Tab.album)
 
             AnalyticsView()
                 .tabItem { Label("分析", systemImage: "chart.bar") }

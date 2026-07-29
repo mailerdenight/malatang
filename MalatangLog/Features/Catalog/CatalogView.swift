@@ -12,14 +12,6 @@ struct CatalogView: View {
     @State private var pendingDeletion: Serving?
     @State private var showingDeleteConfirmation = false
     @State private var favorites = FavoriteStoreService.shared
-    @State private var showSampleHint = false
-    @AppStorage("hasShownLegendaryBowlHintV11") private var hasShownSampleHint = false
-
-    private var hallOfFame: [Serving] {
-        servings
-            .filter(\.isHallOfFame)
-            .sorted { ($0.hallOfFameMarkedAt ?? $0.date) > ($1.hallOfFameMarkedAt ?? $1.date) }
-    }
 
     private var results: [Serving] {
         let filtered = servings
@@ -32,10 +24,6 @@ struct CatalogView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
-                    if hallOfFame.isEmpty == false {
-                        hallOfFameSection
-                    }
-
                     controlBar
 
                     if servings.isEmpty {
@@ -80,7 +68,7 @@ struct CatalogView: View {
             }
             .warmBackground()
             .searchable(text: $query, prompt: "店舗名を検索")
-            .navigationTitle("一覧")
+            .navigationTitle("記録一覧")
             .navigationDestination(for: Serving.self) { ServingDetailView(serving: $0) }
             .sheet(isPresented: $showingFilters) {
                 CatalogFilterView(filter: $filter)
@@ -101,64 +89,6 @@ struct CatalogView: View {
                 Button("やめる", role: .cancel) { pendingDeletion = nil }
             } message: {
                 Text("記録と写真が消えます。取り消せません。")
-            }
-            .task {
-                guard hasShownSampleHint == false,
-                      hallOfFame.contains(where: SampleDataService.isSample)
-                else {
-                    return
-                }
-                showSampleHint = true
-                hasShownSampleHint = true
-            }
-        }
-    }
-
-    private var hallOfFameSection: some View {
-        SectionCard(title: "👑 殿堂入り") {
-            VStack(alignment: .leading, spacing: 12) {
-                if showSampleHint {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .foregroundStyle(Theme.primary)
-                        Text("これはサンプルです。長押しで削除できます。")
-                            .font(.footnote)
-                            .foregroundStyle(Theme.subtleText)
-                        Spacer()
-                        Button {
-                            withAnimation { showSampleHint = false }
-                        } label: {
-                            Image(systemName: "xmark")
-                        }
-                        .accessibilityLabel("説明を閉じる")
-                    }
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(hallOfFame, id: \.uuid) { serving in
-                            NavigationLink(value: serving) {
-                                ServingHighlightCard(serving: serving)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button {
-                                    serving.isHallOfFame = false
-                                    serving.hallOfFameMarkedAt = nil
-                                    try? context.save()
-                                } label: {
-                                    Label("殿堂入りから外す", systemImage: "crown")
-                                }
-                                Button(role: .destructive) {
-                                    requestDeletion(of: serving)
-                                } label: {
-                                    Label("削除", systemImage: "trash")
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
             }
         }
     }
@@ -207,6 +137,18 @@ struct ServingListCard: View {
         HStack(alignment: .top, spacing: 14) {
             ServingThumbnail(photoID: serving.photoID)
                 .frame(width: 104, height: 104)
+                .overlay(alignment: .topTrailing) {
+                    if SampleDataService.isSample(serving) {
+                        Text("sample")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.78))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(.black.opacity(0.22), in: Capsule())
+                            .padding(6)
+                            .accessibilityHidden(true)
+                    }
+                }
 
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline) {

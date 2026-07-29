@@ -3,10 +3,8 @@ import SwiftData
 
 struct HomeView: View {
     @Query(sort: \Serving.date, order: .reverse) private var servings: [Serving]
-    @Query private var stores: [Store]
-    @Query(sort: \Noodle.sortOrder) private var noodles: [Noodle]
 
-    @State private var favorites = FavoriteStoreService.shared
+    @State private var showingSettings = false
     var onNewRecord: () -> Void
 
     private var realServings: [Serving] {
@@ -22,13 +20,8 @@ struct HomeView: View {
         )
     }
 
-    private var recommendation: DailyRecommendation {
-        DailyRecommendation.make(
-            servings: realServings,
-            stores: stores,
-            noodles: noodles,
-            favoriteStoreIDs: favorites.ids
-        )
+    private var recentServings: [Serving] {
+        Array(realServings.prefix(3))
     }
 
     private var thisMonthServings: [Serving] {
@@ -47,17 +40,38 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    hallOfFameCard
-                    recommendationCard
-                    newRecordButton
                     monthlySummaryCard
+                    recentRecordsCard
+                    hallOfFameCard
                 }
                 .padding(16)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                newRecordButton
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.regularMaterial)
+                    .overlay(alignment: .top) { Divider() }
             }
             .warmBackground()
             .navigationTitle("麻辣湯ログ")
             .navigationDestination(for: Serving.self) { serving in
                 ServingDetailView(serving: serving)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("設定")
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                NavigationStack {
+                    SettingsView()
+                }
             }
         }
     }
@@ -74,16 +88,24 @@ struct HomeView: View {
         }
     }
 
-    private var recommendationCard: some View {
-        SectionCard(title: "⭐ 今日のおすすめ") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(recommendation.message)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Theme.text)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(recommendation.reason)
+    private var recentRecordsCard: some View {
+        SectionCard(title: "最近の記録", subtitle: "ホームでは直近3杯だけを表示します") {
+            if recentServings.isEmpty {
+                Text("最初の一杯を記録すると、ここからすぐ振り返れます。")
                     .font(.footnote)
                     .foregroundStyle(Theme.subtleText)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(recentServings, id: \.uuid) { serving in
+                        NavigationLink(value: serving) {
+                            ServingRow(serving: serving)
+                        }
+                        .buttonStyle(.plain)
+                        if serving.uuid != recentServings.last?.uuid {
+                            Divider().overlay(Theme.hairline)
+                        }
+                    }
+                }
             }
         }
     }
@@ -96,6 +118,7 @@ struct HomeView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(Theme.primary)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityHint("記録画面を開きます")
     }
 
@@ -150,85 +173,6 @@ struct HomeView: View {
             .padding(.horizontal, 2)
             .padding(.vertical, 2)
         }
-    }
-}
-
-struct DailyRecommendation {
-    let message: String
-    let reason: String
-
-    static func make(
-        servings: [Serving],
-        stores: [Store],
-        noodles: [Noodle],
-        favoriteStoreIDs: Set<UUID>,
-        now: Date = Date()
-    ) -> DailyRecommendation {
-        guard servings.isEmpty == false else {
-            return DailyRecommendation(
-                message: "最初の一杯を記録してみよう",
-                reason: "記録が増えると、好みに合わせておすすめします。"
-            )
-        }
-
-        let visitedStores = stores.filter {
-            $0.servings.contains { SampleDataService.isSample($0) == false }
-        }
-        let favoriteStores = visitedStores.filter { favoriteStoreIDs.contains($0.uuid) }
-        if let favorite = oldestVisitedStore(in: favoriteStores) {
-            return DailyRecommendation(
-                message: "今日は久しぶりに\n\(favorite.displayName)はどう？",
-                reason: "お気に入り店舗の中から、最近行っていないお店を選びました。"
-            )
-        }
-
-        if visitedStores.count >= 2,
-           let oldest = oldestVisitedStore(in: visitedStores),
-           let lastVisit = realLastVisit(of: oldest),
-           now.timeIntervalSince(lastVisit) >= 7 * 24 * 60 * 60 {
-            return DailyRecommendation(
-                message: "今日は久しぶりに\n\(oldest.displayName)はどう？",
-                reason: "最近行っていない店舗からおすすめしています。"
-            )
-        }
-
-        let recentlyUsedNoodleIDs = Set(servings.prefix(5).flatMap { $0.noodles.map(\.uuid) })
-        let previouslyUsed = noodles.filter { noodle in
-            servings.contains { $0.noodles.contains(where: { $0.uuid == noodle.uuid }) }
-        }
-        if let noodle = previouslyUsed.first(where: { recentlyUsedNoodleIDs.contains($0.uuid) == false }) {
-            return DailyRecommendation(
-                message: "今日は\(noodle.name)を\n選んでみるのはどう？",
-                reason: "最近選んでいない麺からおすすめしています。"
-            )
-        }
-
-        if let highestRated = visitedStores.max(by: {
-            ($0.averageRating ?? 0) < ($1.averageRating ?? 0)
-        }) {
-            return DailyRecommendation(
-                message: "高評価の\n\(highestRated.displayName)はどう？",
-                reason: "これまでの評価が高い店舗です。"
-            )
-        }
-
-        return DailyRecommendation(
-            message: "今日は新しい麻辣湯店を\n探してみよう",
-            reason: "地図タブから3km圏内のお店を探せます。"
-        )
-    }
-
-    private static func oldestVisitedStore(in stores: [Store]) -> Store? {
-        stores.min {
-            (realLastVisit(of: $0) ?? .distantPast) < (realLastVisit(of: $1) ?? .distantPast)
-        }
-    }
-
-    private static func realLastVisit(of store: Store) -> Date? {
-        store.servings
-            .filter { SampleDataService.isSample($0) == false }
-            .map(\.date)
-            .max()
     }
 }
 

@@ -48,16 +48,6 @@ struct AnalyticsView: View {
             }
             .warmBackground()
             .navigationTitle("分析")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("設定")
-                }
-            }
         }
     }
 
