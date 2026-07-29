@@ -4,6 +4,9 @@ import UIKit
 
 enum SampleDataService {
     static let sampleServingUUID = UUID(uuidString: "32E361C9-60F1-47BB-83C5-933AB3625CA3")!
+    static let sampleLatitude = 35.681236
+    static let sampleLongitude = 139.767125
+    static let sampleAddress = "東京都千代田区丸の内1丁目 東京駅"
     private static let didSeedKey = "didSeedLegendaryBowlV11"
 
     static func isSample(_ serving: Serving) -> Bool {
@@ -12,6 +15,7 @@ enum SampleDataService {
 
     /// v1.1を初めて開いたときだけサンプルを追加する。削除後は再生成しない。
     static func seedIfNeeded(_ context: ModelContext) {
+        updateExistingSampleLocation(in: context)
         guard UserDefaults.standard.bool(forKey: didSeedKey) == false else { return }
 
         let existing = (try? context.fetch(FetchDescriptor<Serving>())) ?? []
@@ -21,6 +25,9 @@ enum SampleDataService {
         }
 
         let store = MasterService.findOrCreateStore(name: "Legendary Bowl", in: context)
+        store?.address = sampleAddress
+        store?.latitude = sampleLatitude
+        store?.longitude = sampleLongitude
         let soups = (try? context.fetch(FetchDescriptor<Soup>())) ?? []
         let soup = soups.first { $0.name == "麻辣スープ" } ?? soups.first
         let noodle = addedNoodle(named: "龍口春雨", context: context)
@@ -72,6 +79,22 @@ enum SampleDataService {
         } catch {
             PhotoStore.shared.delete(photoID)
         }
+    }
+
+    /// 旧バージョンで作成済みのサンプルも、曖昧な店名検索ではなく東京駅を指すようにする。
+    private static func updateExistingSampleLocation(in context: ModelContext) {
+        let servings = (try? context.fetch(FetchDescriptor<Serving>())) ?? []
+        guard let store = servings.first(where: isSample)?.store else { return }
+
+        let needsUpdate = store.address != sampleAddress
+            || store.latitude != sampleLatitude
+            || store.longitude != sampleLongitude
+        guard needsUpdate else { return }
+
+        store.address = sampleAddress
+        store.latitude = sampleLatitude
+        store.longitude = sampleLongitude
+        try? context.save()
     }
 
     private static func addedNoodle(named name: String, context: ModelContext) -> Noodle? {

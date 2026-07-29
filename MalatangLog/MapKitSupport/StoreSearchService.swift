@@ -58,6 +58,34 @@ final class StoreSearchService {
         )
     }
 
+    /// ユーザーが移動・拡大縮小した現在の地図範囲を中心に検索し直す。
+    func searchVisibleRegion(
+        _ region: MKCoordinateRegion,
+        keyword: String = defaultKeyword
+    ) {
+        let center = region.center
+        let northEdge = CLLocation(
+            latitude: center.latitude + region.span.latitudeDelta / 2,
+            longitude: center.longitude
+        )
+        let eastEdge = CLLocation(
+            latitude: center.latitude,
+            longitude: center.longitude + region.span.longitudeDelta / 2
+        )
+        let centerLocation = CLLocation(latitude: center.latitude, longitude: center.longitude)
+        let radius = hypot(
+            centerLocation.distance(from: northEdge),
+            centerLocation.distance(from: eastEdge)
+        ) * 1.15
+
+        perform(
+            keyword: keyword.isEmpty ? Self.defaultKeyword : keyword,
+            region: region,
+            center: center,
+            maximumDistance: radius
+        )
+    }
+
     func search(keyword: String, near coordinate: CLLocationCoordinate2D? = nil) {
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else {

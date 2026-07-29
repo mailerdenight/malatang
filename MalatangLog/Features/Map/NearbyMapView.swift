@@ -14,6 +14,8 @@ struct NearbyMapView: View {
     @State private var recordStore: Store?
     @State private var showingRecordEditor = false
     @State private var favorites = FavoriteStoreService.shared
+    @State private var visibleRegion: MKCoordinateRegion?
+    @State private var lastSearchedRegion: MKCoordinateRegion?
 
     private var results: [StoreSearchResult] {
         if case .results(let items) = search.state { return items }
@@ -45,6 +47,10 @@ struct NearbyMapView: View {
                 MapUserLocationButton()
                 MapCompass()
                 MapScaleView()
+            }
+            .onMapCameraChange(frequency: .onEnd) { mapContext in
+                visibleRegion = mapContext.region
+                searchVisibleRegionIfNeeded(mapContext.region)
             }
             .overlay(alignment: .top) {
                 statusBanner
@@ -108,10 +114,10 @@ struct NearbyMapView: View {
     private var statusBanner: some View {
         switch search.state {
         case .searching:
-            Label("3km圏内を検索中…", systemImage: "location.magnifyingglass")
+            Label("表示範囲を検索中…", systemImage: "location.magnifyingglass")
                 .statusCapsule()
         case .empty:
-            Label("3km圏内に店舗が見つかりませんでした", systemImage: "mappin.slash")
+            Label("表示範囲に店舗が見つかりませんでした", systemImage: "mappin.slash")
                 .statusCapsule()
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle")
@@ -211,7 +217,10 @@ struct NearbyMapView: View {
 
     private func refresh() {
         selectedResult = nil
-        if location.isAuthorized {
+        if let visibleRegion {
+            lastSearchedRegion = visibleRegion
+            search.searchVisibleRegion(visibleRegion)
+        } else if location.isAuthorized {
             location.requestOneShotLocation()
             if let currentLocation = location.currentLocation {
                 searchAround(currentLocation)
@@ -222,14 +231,55 @@ struct NearbyMapView: View {
     }
 
     private func searchAround(_ currentLocation: CLLocation) {
-        cameraPosition = .region(
-            MKCoordinateRegion(
-                center: currentLocation.coordinate,
-                latitudinalMeters: 6_000,
-                longitudinalMeters: 6_000
-            )
+        let region = MKCoordinateRegion(
+            center: currentLocation.coordinate,
+            latitudinalMeters: 6_000,
+            longitudinalMeters: 6_000
         )
-        search.searchNearby(coordinate: currentLocation.coordinate)
+        visibleRegion = region
+        lastSearchedRegion = region
+        cameraPosition = .region(region)
+        search.searchVisibleRegion(region)
+    }
+
+    private func searchVisibleRegionIfNeeded(_ region: MKCoordinateRegion) {
+        guard hasMeaningfulMapChange(from: lastSearchedRegion, to: region) else { return }
+        selectedResult = nil
+        lastSearchedRegion = region
+        search.searchVisibleRegion(region)
+    }
+
+    private func hasMeaningfulMapChange(
+        from previous: MKCoordinateRegion?,
+        to current: MKCoordinateRegion
+    ) -> Bool {
+        guard let previous else { return true }
+
+        let previousCenter = CLLocation(
+            latitude: previous.center.latitude,
+            longitude: previous.center.longitude
+        )
+        let currentCenter = CLLocation(
+            latitude: current.center.latitude,
+            longitude: current.center.longitude
+        )
+        let westEdge = CLLocation(
+            latitude: current.center.latitude,
+            longitude: current.center.longitude - current.span.longitudeDelta / 2
+        )
+        let eastEdge = CLLocation(
+            latitude: current.center.latitude,
+            longitude: current.center.longitude + current.span.longitudeDelta / 2
+        )
+        let visibleWidth = westEdge.distance(from: eastEdge)
+        let movedEnough = previousCenter.distance(from: currentCenter) > max(visibleWidth * 0.12, 120)
+
+        let latitudeScale = current.span.latitudeDelta / max(previous.span.latitudeDelta, 0.000_001)
+        let longitudeScale = current.span.longitudeDelta / max(previous.span.longitudeDelta, 0.000_001)
+        let zoomedEnough = latitudeScale < 0.8 || latitudeScale > 1.25
+            || longitudeScale < 0.8 || longitudeScale > 1.25
+
+        return movedEnough || zoomedEnough
     }
 
     private func existingStore(for result: StoreSearchResult) -> Store? {
