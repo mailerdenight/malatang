@@ -11,6 +11,7 @@ enum RecordEditorMode {
 struct RecordEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(PurchaseManager.self) private var purchaseManager
 
     @Query(sort: \Soup.sortOrder) private var soups: [Soup]
     @Query(sort: \Noodle.sortOrder) private var noodles: [Noodle]
@@ -27,6 +28,8 @@ struct RecordEditorView: View {
     @State private var showingDetails = false
     @State private var showingDeleteConfirm = false
     @State private var showingSavedAnimation = false
+    @State private var showingUnlimitedAccess = false
+    @State private var isCheckingAccess = false
     @State private var newSoupName = ""
     @State private var newNoodleName = ""
     @State private var masterNotice: String?
@@ -79,8 +82,9 @@ struct RecordEditorView: View {
                     Button("キャンセル") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
+                    Button(isCheckingAccess ? "確認中…" : "保存") { save() }
                         .font(.body.weight(.semibold))
+                        .disabled(isCheckingAccess)
                 }
             }
             .sheet(isPresented: $showingStorePicker) {
@@ -88,6 +92,11 @@ struct RecordEditorView: View {
             }
             .sheet(isPresented: $showingIngredientPicker) {
                 IngredientPickerView(selection: $draft.ingredients)
+            }
+            .sheet(isPresented: $showingUnlimitedAccess) {
+                UnlimitedAccessView(visitedStoreCount: visitedStoreIDs.count) {
+                    performSave()
+                }
             }
             .confirmationDialog(
                 "この記録を削除しますか？",
@@ -120,34 +129,43 @@ struct RecordEditorView: View {
 
     private var basicsCard: some View {
         SectionCard(title: "基本", subtitle: "必須はスープ・辛さ・痺れ・麺の4つだけ") {
-            HStack(alignment: .top, spacing: 16) {
-                PhotoInputTile(draft: draft)
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Label("日時", systemImage: "calendar")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.subtleText)
-                        DatePicker("", selection: $draft.date, in: ...Date())
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-                            .font(.subheadline)
-                    }
-
-                    Button {
-                        showingStorePicker = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "storefront")
-                            Text(draft.store?.displayName ?? "店舗を選ぶ（任意）")
-                                .lineLimit(1)
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.caption)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 16) {
+                    PhotoInputTile(draft: draft)
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Label("日時", systemImage: "calendar")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.subtleText)
+                            DatePicker("", selection: $draft.date, in: ...Date())
+                                .labelsHidden()
+                                .datePickerStyle(.compact)
+                                .font(.subheadline)
                         }
-                        .frame(minHeight: Theme.minTapTarget)
-                        .foregroundStyle(draft.store == nil ? Theme.subtleText : Theme.text)
-                        .contentShape(Rectangle())
+
+                        Button {
+                            showingStorePicker = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "storefront")
+                                Text(draft.store?.displayName ?? "店舗を選ぶ（任意）")
+                                    .lineLimit(1)
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.caption)
+                            }
+                            .frame(minHeight: Theme.minTapTarget)
+                            .foregroundStyle(draft.store == nil ? Theme.subtleText : Theme.text)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                }
+
+                if let freeStoreNotice {
+                    Label(freeStoreNotice, systemImage: "info.circle")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -383,6 +401,44 @@ struct RecordEditorView: View {
 
     // MARK: - 操作
 
+    private var replacedServingID: UUID? {
+        guard case .edit(let serving) = mode else { return nil }
+        return serving.uuid
+    }
+
+    /// 編集時は編集中の記録を一度除外し、保存後の店舗数で判定する。
+    private var visitedStoreIDs: Set<UUID> {
+        Set(servings.compactMap { serving in
+            guard SampleDataService.isSample(serving) == false,
+                  serving.uuid != replacedServingID else {
+                return nil
+            }
+            return serving.store?.uuid
+        })
+    }
+
+    private var freeStoreNotice: String? {
+        guard purchaseManager.isUnlocked == false,
+              isEditing == false,
+              let storeID = draft.store?.uuid,
+              visitedStoreIDs.contains(storeID) == false else {
+            return nil
+        }
+
+        let resultingCount = visitedStoreIDs.union([storeID]).count
+        guard (3...StoreAccessPolicy.freeStoreLimit).contains(resultingCount) else {
+            return nil
+        }
+
+        let remaining = StoreAccessPolicy.remainingFreeStores(
+            visitedStoreCount: resultingCount
+        )
+        if remaining == 0 {
+            return "この店舗まで無料で記録できます。次の新しい店舗から無制限版の解除が必要です。"
+        }
+        return "この店舗を保存すると、無料で記録できるのはあと\(remaining)店舗です。"
+    }
+
     private func toggleNoodle(_ noodle: Noodle) {
         if let index = draft.noodles.firstIndex(of: noodle) {
             draft.noodles.remove(at: index)
@@ -428,6 +484,33 @@ struct RecordEditorView: View {
         draft.didAttemptSave = true
         guard draft.isValid else { return }
 
+        guard purchaseManager.hasCheckedEntitlements else {
+            isCheckingAccess = true
+            Task { @MainActor in
+                await purchaseManager.refreshEntitlements()
+                isCheckingAccess = false
+                continueValidatedSave()
+            }
+            return
+        }
+
+        continueValidatedSave()
+    }
+
+    private func continueValidatedSave() {
+        let requiresUnlock = StoreAccessPolicy.requiresUnlock(
+            isUnlocked: purchaseManager.isUnlocked,
+            visitedStoreIDs: visitedStoreIDs,
+            selectedStoreID: draft.store?.uuid
+        )
+        if requiresUnlock {
+            showingUnlimitedAccess = true
+        } else {
+            performSave()
+        }
+    }
+
+    private func performSave() {
         switch mode {
         case .create, .duplicate:
             let serving = draft.makeServing()

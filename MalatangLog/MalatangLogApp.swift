@@ -5,6 +5,7 @@ import SwiftData
 struct MalatangLogApp: App {
 
     @AppStorage("appearancePreference") private var appearancePreference = AppearancePreference.light.rawValue
+    @State private var purchaseManager = PurchaseManager()
     private let containerResult: Result<ModelContainer, Error>
 
     init() {
@@ -22,6 +23,7 @@ struct MalatangLogApp: App {
                     DataUnavailableView(error: error)
                 }
             }
+            .environment(purchaseManager)
             .tint(Theme.primary)
             .preferredColorScheme(
                 AppearancePreference(rawValue: appearancePreference)?.colorScheme

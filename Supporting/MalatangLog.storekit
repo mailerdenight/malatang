@@ -1,0 +1,33 @@
+{
+  "identifier": "9C46065D-4E7D-4CA1-B7CB-07EF09089CA8",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "300",
+      "familyShareable": false,
+      "internalID": "69ACBB95-42CB-48FD-9C51-A812E5AC25D3",
+      "localizations": [
+        {
+          "description": "店舗数と記録数の上限を永久に解除します。",
+          "displayName": "麻辣湯ログ 無制限版",
+          "locale": "ja_JP"
+        }
+      ],
+      "productID": "com.malatanglog.app.unlimited",
+      "referenceName": "MalatangLog Unlimited",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {
+    "_failTransactionsEnabled": false,
+    "_locale": "ja_JP",
+    "_renewalBillingIssuesEnabled": false,
+    "_storefront": "JPN",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

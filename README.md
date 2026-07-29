@@ -8,7 +8,7 @@
 
 - 端末内保存のみ（SwiftData）。アカウント・独自サーバー・広告・分析SDKなし
 - MapKitで現在地から約3kmの麻辣湯店を地図表示。Google／Apple マップの外部起動にも対応
-- 300円買い切り想定。アプリ内課金の実装なし
+- 無料5店舗。6店舗目から300円買い切りの無制限版（StoreKit 2・非消費型）
 
 ---
 
@@ -50,6 +50,7 @@ MalatangLog.xcodeproj
 | `CatalogSearchTests` | 中国語別名を含む検索、絞り込み、価格順の未入力の扱い |
 | `AnalyticsSummaryTests` | 集計（平均価格から未入力を除外、分布） |
 | `MapLauncherTests` | 緯度経度あり／店名のみ／Googleマップ未インストール時のフォールバック |
+| `StoreAccessPolicyTests` | 無料5店舗／6店舗目／既存店舗／購入済みの課金境界 |
 
 ## 4. 構成
 
@@ -99,4 +100,5 @@ Supporting/Info.plist   権限文言・Googleマップスキーム・.malaarchiv
 - [ ] Bundle Identifier を自分のものに確定し、App Store Connect にアプリを登録
 - [ ] スクリーンショット7枚（仕様書 9.2 の構成）
 - [ ] App Store の説明文・プライバシー回答
+- [ ] App Store Connectに `com.malatanglog.app.unlimited` の非消費型課金（日本300円）を作成
 - [ ] 実機での Dynamic Type 特大文字・VoiceOver の確認

@@ -4,14 +4,26 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
+    @Environment(PurchaseManager.self) private var purchaseManager
     @Query private var servings: [Serving]
     @Query(sort: \Ingredient.sortOrder) private var ingredients: [Ingredient]
 
     @State private var copiedNotice = false
+    @State private var showingUnlimitedAccess = false
+    @State private var restoreMessage: String?
     @AppStorage("appearancePreference") private var appearancePreference = AppearancePreference.light.rawValue
 
     private var hiddenIngredients: [Ingredient] {
         ingredients.filter(\.isHidden)
+    }
+
+    private var visitedStoreCount: Int {
+        Set<UUID>(
+            servings.compactMap { serving in
+                guard SampleDataService.isSample(serving) == false else { return nil }
+                return serving.store?.uuid
+            }
+        ).count
     }
 
     var body: some View {
@@ -25,6 +37,8 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+
+                purchaseCard
 
                 SectionCard(title: "データ") {
                     NavigationLink {
@@ -54,6 +68,7 @@ struct SettingsView: View {
                         privacyLine("アカウント登録も、独自サーバーへの送信もありません。")
                         privacyLine("位置情報は店舗検索と経路表示のときだけ使い、常時追跡はしません。")
                         privacyLine("行動分析SDKは入れていません。")
+                        privacyLine("購入はAppleのStoreKitが処理し、カード情報をアプリで取得しません。")
                     }
                 }
 
@@ -97,6 +112,83 @@ struct SettingsView: View {
         .warmBackground()
         .navigationTitle("設定")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingUnlimitedAccess) {
+            UnlimitedAccessView(visitedStoreCount: visitedStoreCount)
+        }
+        .alert(
+            "購入の復元",
+            isPresented: Binding(
+                get: { restoreMessage != nil },
+                set: { if $0 == false { restoreMessage = nil } }
+            )
+        ) {
+            Button("閉じる", role: .cancel) {}
+        } message: {
+            Text(restoreMessage ?? "")
+        }
+    }
+
+    private var purchaseCard: some View {
+        SectionCard(
+            title: "利用プラン",
+            subtitle: purchaseManager.isUnlocked
+                ? "買い切りの無制限版"
+                : "無料版は5店舗まで"
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label(
+                        purchaseManager.isUnlocked ? "無制限版" : "無料版",
+                        systemImage: purchaseManager.isUnlocked ? "checkmark.seal.fill" : "storefront"
+                    )
+                    .font(.headline)
+                    .foregroundStyle(purchaseManager.isUnlocked ? Theme.secondary : Theme.text)
+                    Spacer()
+                    if purchaseManager.isUnlocked == false {
+                        Text("\(min(visitedStoreCount, StoreAccessPolicy.freeStoreLimit)) / \(StoreAccessPolicy.freeStoreLimit)店舗")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(Theme.subtleText)
+                    }
+                }
+
+                if purchaseManager.isUnlocked {
+                    Text("店舗数・記録数の上限はありません。")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.subtleText)
+                } else {
+                    let remaining = StoreAccessPolicy.remainingFreeStores(
+                        visitedStoreCount: visitedStoreCount
+                    )
+                    Text(
+                        remaining > 0
+                            ? "あと\(remaining)店舗を無料で記録できます。"
+                            : "既存店舗への記録追加、閲覧、編集、バックアップは引き続き無料です。"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(Theme.subtleText)
+
+                    Button {
+                        showingUnlimitedAccess = true
+                    } label: {
+                        Label("買い切りで無制限にする", systemImage: "infinity")
+                            .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.primary)
+                }
+
+                Button("購入を復元") {
+                    Task {
+                        let restored = await purchaseManager.restore()
+                        restoreMessage = restored
+                            ? "無制限版の購入を復元しました。"
+                            : "このApple Accountで復元できる購入はありませんでした。"
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
+                .disabled(purchaseManager.isLoading)
+            }
+        }
     }
 
     private var diagnosticsText: String {
