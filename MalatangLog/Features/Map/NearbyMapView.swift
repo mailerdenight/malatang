@@ -334,10 +334,12 @@ struct NearbyMapView: View {
 
     private func openGoogleMaps(_ result: StoreSearchResult) {
         let destination: MapLauncher.Destination
-        if let latitude = result.latitude, let longitude = result.longitude {
+        if result.address.isEmpty == false {
+            destination = .query("\(result.name) \(result.address)")
+        } else if let latitude = result.latitude, let longitude = result.longitude {
             destination = .coordinate(latitude: latitude, longitude: longitude, label: result.name)
         } else {
-            destination = .query([result.name, result.address].joined(separator: " "))
+            destination = .query(result.name)
         }
         MapLauncher.openMap(destination, using: .google)
     }

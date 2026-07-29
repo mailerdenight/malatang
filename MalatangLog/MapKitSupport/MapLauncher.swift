@@ -116,6 +116,8 @@ enum MapLauncher {
     }
 
     private static func encode(_ value: String) -> String {
-        value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+        let queryValueAllowed = CharacterSet.urlQueryAllowed
+            .subtracting(CharacterSet(charactersIn: "&+=?#"))
+        return value.addingPercentEncoding(withAllowedCharacters: queryValueAllowed) ?? value
     }
 }

@@ -56,4 +56,11 @@ final class MapLauncherTests: XCTestCase {
             XCTAssertTrue(url.absoluteString.hasPrefix("https://www.google.com/maps"))
         }
     }
+
+    func testGoogleQueryKeepsReservedCharactersInsideSearchText() throws {
+        let destination = MapLauncher.Destination.query("A&B麻辣湯 東京都千代田区")
+        let url = try XCTUnwrap(MapLauncher.mapURL(destination, provider: .google))
+
+        XCTAssertTrue(url.absoluteString.contains("A%26B"))
+    }
 }

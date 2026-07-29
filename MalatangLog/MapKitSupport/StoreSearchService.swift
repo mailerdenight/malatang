@@ -127,9 +127,9 @@ final class StoreSearchService {
         searchGeneration = generation
         var remaining = keywords.count
         var receivedResponse = false
-        var collectedMapItems: [MKMapItem] = []
+        var collectedMapItems = Array(repeating: [MKMapItem](), count: keywords.count)
 
-        for keyword in keywords {
+        for (index, keyword) in keywords.enumerated() {
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = keyword
             request.resultTypes = [.pointOfInterest]
@@ -143,7 +143,7 @@ final class StoreSearchService {
                     guard self.searchGeneration == generation else { return }
                     if let response {
                         receivedResponse = true
-                        collectedMapItems.append(contentsOf: response.mapItems)
+                        collectedMapItems[index] = response.mapItems
                     }
                     remaining -= 1
                     guard remaining == 0 else { return }
@@ -154,7 +154,7 @@ final class StoreSearchService {
                         return
                     }
                     let items = Self.makeResults(
-                        from: collectedMapItems,
+                        from: collectedMapItems.flatMap { $0 },
                         center: center,
                         maximumDistance: maximumDistance
                     )
@@ -191,17 +191,28 @@ final class StoreSearchService {
             }
 
             let name = item.name ?? "名称不明"
+            let address = formattedAddress(item.placemark)
             let coordinate = item.placemark.location?.coordinate
-            let key = [
-                name.folding(options: [.caseInsensitive, .widthInsensitive], locale: .current),
+            let normalizedName = name.folding(
+                options: [.caseInsensitive, .widthInsensitive],
+                locale: .current
+            )
+            let normalizedAddress = address.folding(
+                options: [.caseInsensitive, .widthInsensitive],
+                locale: .current
+            )
+            let locationFallback = [
                 coordinate.map { String(format: "%.5f", $0.latitude) } ?? "",
                 coordinate.map { String(format: "%.5f", $0.longitude) } ?? ""
             ].joined(separator: "|")
+            let key = normalizedAddress.isEmpty
+                ? "\(normalizedName)|\(locationFallback)"
+                : "\(normalizedName)|\(normalizedAddress)"
             guard seen.insert(key).inserted else { return nil }
 
             return StoreSearchResult(
                 name: name,
-                address: formattedAddress(item.placemark),
+                address: address,
                 latitude: coordinate?.latitude,
                 longitude: coordinate?.longitude
             )
