@@ -107,5 +107,5 @@ Supporting/Info.plist   権限文言・Googleマップスキーム・.malaarchiv
 - [ ] スクリーンショット7枚（仕様書 9.2 の構成）
 - [ ] 9言語のApp Store説明・キーワード・スクリーンショットを登録し、ネイティブレビュー
 - [ ] App Store のプライバシー回答
-- [ ] App Store Connectに `com.malatanglog.app.unlimited` の非消費型課金を作成し、国・地域別価格を確認
+- [ ] App Store Connectに `com.malatanglog.unlimited` の非消費型課金を作成し、国・地域別価格を確認
 - [ ] 実機での Dynamic Type 特大文字・VoiceOver の確認
