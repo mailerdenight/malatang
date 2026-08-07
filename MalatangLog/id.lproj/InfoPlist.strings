@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "Catatan Malatang";
+"CFBundleName" = "Catatan Malatang";
+"NSCameraUsageDescription" = "Digunakan untuk memotret Malatang dan melampirkannya ke catatan. Anda tetap dapat membuat catatan tanpa mengizinkannya.";
+"NSLocationWhenInUseUsageDescription" = "Digunakan untuk menemukan restoran di dekat lokasi Anda. Anda tetap dapat memasukkan nama restoran dan mencari di peta tanpa mengizinkannya.";
+"NSPhotoLibraryUsageDescription" = "Digunakan untuk memilih foto Malatang dari perpustakaan foto. Anda tetap dapat membuat catatan tanpa mengizinkannya.";
+"UTTypeDescription" = "Cadangan Catatan Malatang";
+"Malatang Log Backup" = "Cadangan Catatan Malatang";

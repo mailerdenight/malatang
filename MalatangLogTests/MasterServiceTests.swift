@@ -34,6 +34,16 @@ final class MasterServiceTests: XCTestCase {
         XCTAssertEqual(Set(names).count, names.count, "初期マスターに同名の重複がない")
     }
 
+    func testSampleUsesCanonicalLocalizedMasters() {
+        XCTAssertTrue(
+            SeedMaster.noodles.contains { $0.name == SampleDataService.sampleNoodleName }
+        )
+        XCTAssertTrue(
+            SeedMaster.ingredients.flatMap(\.1)
+                .contains { $0.name == SampleDataService.sampleBallName }
+        )
+    }
+
     func testAddingExistingNameReturnsExisting() throws {
         let context = try makeContext()
         MasterService.seedIfNeeded(context)
@@ -109,5 +119,69 @@ final class MasterServiceTests: XCTestCase {
         XCTAssertNotNil(first)
         XCTAssertEqual(first?.uuid, second?.uuid, "同名同支店は再利用する")
         XCTAssertEqual(second?.address, "東京都新宿区", "住所は後から補完される")
+    }
+
+    func testFindOrCreateStoreKeepsDistantStoresWithSameNameSeparate() throws {
+        let context = try makeContext()
+        let tokyo = MasterService.findOrCreateStore(
+            name: "Malatang House",
+            address: "Shinjuku, Tokyo, Japan",
+            latitude: 35.6938,
+            longitude: 139.7034,
+            in: context
+        )
+        let daNang = MasterService.findOrCreateStore(
+            name: "Malatang House",
+            address: "Hai Chau, Da Nang, Vietnam",
+            latitude: 16.0544,
+            longitude: 108.2022,
+            in: context
+        )
+
+        XCTAssertNotNil(tokyo)
+        XCTAssertNotNil(daNang)
+        XCTAssertNotEqual(tokyo?.uuid, daNang?.uuid, "離れた同名店は別店舗として保存する")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Store>()).count, 2)
+    }
+
+    func testFindOrCreateStoreReusesSameNameWithinFiftyMeters() throws {
+        let context = try makeContext()
+        let first = MasterService.findOrCreateStore(
+            name: "Malatang Da Nang",
+            latitude: 16.05440,
+            longitude: 108.20220,
+            in: context
+        )
+        let nearby = MasterService.findOrCreateStore(
+            name: "Malatang Da Nang",
+            address: "Hai Chau, Da Nang, Vietnam",
+            latitude: 16.05455,
+            longitude: 108.20235,
+            in: context
+        )
+
+        XCTAssertNotNil(first)
+        XCTAssertEqual(first?.uuid, nearby?.uuid, "50m以内の同名店は再利用する")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Store>()).count, 1)
+    }
+
+    func testFindOrCreateStoreDoesNotPersistInvalidCoordinate() throws {
+        let context = try makeContext()
+        let store = MasterService.findOrCreateStore(
+            name: "Invalid Coordinate Store",
+            latitude: 95,
+            longitude: .infinity,
+            in: context
+        )
+
+        XCTAssertNotNil(store)
+        XCTAssertNil(store?.latitude)
+        XCTAssertNil(store?.longitude)
+        XCTAssertNil(
+            StoreMatchPolicy.validCoordinate(latitude: 95, longitude: 108.2)
+        )
+        XCTAssertNil(
+            StoreMatchPolicy.validCoordinate(latitude: 16.05, longitude: .infinity)
+        )
     }
 }

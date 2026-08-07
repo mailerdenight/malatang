@@ -1,7 +1,8 @@
 import Foundation
+import CoreLocation
 import UIKit
 
-/// アプリ内地図は使わず、Googleマップ／Appleマップを外部起動する。
+/// 保存した店舗をGoogleマップ／Appleマップで外部表示する。
 enum MapLauncher {
 
     enum Destination {
@@ -9,7 +10,11 @@ enum MapLauncher {
         case query(String)
 
         static func make(for store: Store) -> Destination {
-            if let latitude = store.latitude, let longitude = store.longitude {
+            if let latitude = store.latitude,
+               let longitude = store.longitude,
+               CLLocationCoordinate2DIsValid(
+                   CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+               ) {
                 return .coordinate(latitude: latitude, longitude: longitude, label: store.displayName)
             }
             let query = [store.displayName, store.address]
@@ -27,8 +32,8 @@ enum MapLauncher {
 
         var title: String {
             switch self {
-            case .google: return "Googleマップ"
-            case .apple: return "Appleマップ"
+            case .google: return String(localized: "Googleマップ")
+            case .apple: return String(localized: "Appleマップ")
             }
         }
 
@@ -40,7 +45,7 @@ enum MapLauncher {
         }
     }
 
-    /// Googleマップアプリが入っているか。未インストールでも Web にフォールバックできる。
+    /// 表示名の切り替え用。起動自体はアプリの有無に依存しないHTTPS URLを使う。
     static var isGoogleMapsInstalled: Bool {
         guard let url = URL(string: "comgooglemaps://") else { return false }
         return UIApplication.shared.canOpenURL(url)
@@ -64,22 +69,38 @@ enum MapLauncher {
         switch provider {
         case .google:
             switch destination {
-            case let .coordinate(latitude, longitude, _):
-                let app = "comgooglemaps://?q=\(latitude),\(longitude)&center=\(latitude),\(longitude)&zoom=17"
-                let web = "https://www.google.com/maps/search/?api=1&query=\(latitude),\(longitude)"
-                return preferred(appURL: app, webURL: web)
+            case let .coordinate(latitude, longitude, label):
+                guard let coordinate = coordinateString(latitude: latitude, longitude: longitude) else {
+                    return mapURL(.query(label), provider: provider)
+                }
+                return googleURL(
+                    path: "/maps/search/",
+                    queryItems: [
+                        URLQueryItem(name: "api", value: "1"),
+                        URLQueryItem(name: "query", value: coordinate)
+                    ]
+                )
             case let .query(text):
-                let encoded = encode(text)
-                let app = "comgooglemaps://?q=\(encoded)"
-                let web = "https://www.google.com/maps/search/?api=1&query=\(encoded)"
-                return preferred(appURL: app, webURL: web)
+                return googleURL(
+                    path: "/maps/search/",
+                    queryItems: [
+                        URLQueryItem(name: "api", value: "1"),
+                        URLQueryItem(name: "query", value: text)
+                    ]
+                )
             }
         case .apple:
             switch destination {
             case let .coordinate(latitude, longitude, label):
-                return URL(string: "http://maps.apple.com/?ll=\(latitude),\(longitude)&q=\(encode(label))")
+                guard let coordinate = coordinateString(latitude: latitude, longitude: longitude) else {
+                    return mapURL(.query(label), provider: provider)
+                }
+                return appleURL(queryItems: [
+                    URLQueryItem(name: "ll", value: coordinate),
+                    URLQueryItem(name: "q", value: label)
+                ])
             case let .query(text):
-                return URL(string: "http://maps.apple.com/?q=\(encode(text))")
+                return appleURL(queryItems: [URLQueryItem(name: "q", value: text)])
             }
         }
     }
@@ -88,36 +109,78 @@ enum MapLauncher {
         switch provider {
         case .google:
             switch destination {
-            case let .coordinate(latitude, longitude, _):
-                let app = "comgooglemaps://?daddr=\(latitude),\(longitude)&directionsmode=transit"
-                let web = "https://www.google.com/maps/dir/?api=1&destination=\(latitude),\(longitude)"
-                return preferred(appURL: app, webURL: web)
+            case let .coordinate(latitude, longitude, label):
+                guard let coordinate = coordinateString(latitude: latitude, longitude: longitude) else {
+                    return directionsURL(.query(label), provider: provider)
+                }
+                return googleURL(
+                    path: "/maps/dir/",
+                    queryItems: [
+                        URLQueryItem(name: "api", value: "1"),
+                        URLQueryItem(name: "destination", value: coordinate)
+                    ]
+                )
             case let .query(text):
-                let encoded = encode(text)
-                let app = "comgooglemaps://?daddr=\(encoded)&directionsmode=transit"
-                let web = "https://www.google.com/maps/dir/?api=1&destination=\(encoded)"
-                return preferred(appURL: app, webURL: web)
+                return googleURL(
+                    path: "/maps/dir/",
+                    queryItems: [
+                        URLQueryItem(name: "api", value: "1"),
+                        URLQueryItem(name: "destination", value: text)
+                    ]
+                )
             }
         case .apple:
             switch destination {
-            case let .coordinate(latitude, longitude, _):
-                return URL(string: "http://maps.apple.com/?daddr=\(latitude),\(longitude)&dirflg=r")
+            case let .coordinate(latitude, longitude, label):
+                guard let coordinate = coordinateString(latitude: latitude, longitude: longitude) else {
+                    return directionsURL(.query(label), provider: provider)
+                }
+                return appleURL(queryItems: [
+                    URLQueryItem(name: "daddr", value: coordinate)
+                ])
             case let .query(text):
-                return URL(string: "http://maps.apple.com/?daddr=\(encode(text))&dirflg=r")
+                return appleURL(queryItems: [
+                    URLQueryItem(name: "daddr", value: text)
+                ])
             }
         }
     }
 
-    private static func preferred(appURL: String, webURL: String) -> URL? {
-        if isGoogleMapsInstalled, let url = URL(string: appURL) {
-            return url
-        }
-        return URL(string: webURL)
+    private static func googleURL(
+        path: String,
+        queryItems: [URLQueryItem]
+    ) -> URL? {
+        makeHTTPSURL(host: "www.google.com", path: path, queryItems: queryItems)
     }
 
-    private static func encode(_ value: String) -> String {
-        let queryValueAllowed = CharacterSet.urlQueryAllowed
-            .subtracting(CharacterSet(charactersIn: "&+=?#"))
-        return value.addingPercentEncoding(withAllowedCharacters: queryValueAllowed) ?? value
+    private static func appleURL(queryItems: [URLQueryItem]) -> URL? {
+        makeHTTPSURL(host: "maps.apple.com", path: "/", queryItems: queryItems)
+    }
+
+    private static func makeHTTPSURL(
+        host: String,
+        path: String,
+        queryItems: [URLQueryItem]
+    ) -> URL? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = host
+        components.path = path
+        components.queryItems = queryItems
+        return components.url
+    }
+
+    private static func coordinateString(
+        latitude: Double,
+        longitude: Double
+    ) -> String? {
+        let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        guard CLLocationCoordinate2DIsValid(coordinate) else { return nil }
+        return String(
+            format: "%.6f,%.6f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            latitude,
+            longitude
+        )
     }
 }

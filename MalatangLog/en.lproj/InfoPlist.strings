@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "Malatang Log";
+"CFBundleName" = "Malatang Log";
+"NSCameraUsageDescription" = "Used to take a photo of your bowl and attach it to your log. You can still create logs without allowing access.";
+"NSLocationWhenInUseUsageDescription" = "Used to find stores near your current location. You can still enter store names and search the map without allowing access.";
+"NSPhotoLibraryUsageDescription" = "Used to choose a photo of your bowl from your library. You can still create logs without allowing access.";
+"UTTypeDescription" = "Malatang Log Backup";
+"Malatang Log Backup" = "Malatang Log Backup";

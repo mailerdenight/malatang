@@ -12,6 +12,7 @@ struct RecordEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(PurchaseManager.self) private var purchaseManager
+    @Environment(CurrencySettings.self) private var currencySettings
 
     @Query(sort: \Soup.sortOrder) private var soups: [Soup]
     @Query(sort: \Noodle.sortOrder) private var noodles: [Noodle]
@@ -46,9 +47,9 @@ struct RecordEditorView: View {
 
     private var navigationTitle: String {
         switch mode {
-        case .create: return "新しい一杯"
-        case .edit: return "記録を編集"
-        case .duplicate: return "今日の記録を作成"
+        case .create: return String(localized: "新しい一杯")
+        case .edit: return String(localized: "記録を編集")
+        case .duplicate: return String(localized: "今日の記録を作成")
         }
     }
 
@@ -58,6 +59,7 @@ struct RecordEditorView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         basicsCard
+                        priceCard
                         soupCard
                         levelsCard
                         noodleCard
@@ -115,6 +117,7 @@ struct RecordEditorView: View {
             switch mode {
             case .create:
                 draft = ServingDraft()
+                draft.currencyCode = currencySettings.baseCurrencyCode(for: servings)
                 draft.store = initialStore
                 draft.soup = soups.first { $0.isHidden == false }
             case .edit(let serving):
@@ -128,7 +131,7 @@ struct RecordEditorView: View {
     // MARK: - 基本
 
     private var basicsCard: some View {
-        SectionCard(title: "基本", subtitle: "必須はスープ・辛さ・痺れ・麺の4つだけ") {
+        SectionCard(title: "基本", subtitle: "日時・店舗・写真") {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 16) {
                     PhotoInputTile(draft: draft)
@@ -148,7 +151,10 @@ struct RecordEditorView: View {
                         } label: {
                             HStack {
                                 Image(systemName: "storefront")
-                                Text(draft.store?.displayName ?? "店舗を選ぶ（任意）")
+                                Text(
+                                    verbatim: draft.store?.displayName
+                                        ?? String(localized: "店舗を選ぶ（任意）")
+                                )
                                     .lineLimit(1)
                                 Spacer()
                                 Image(systemName: "chevron.right").font(.caption)
@@ -171,6 +177,18 @@ struct RecordEditorView: View {
         }
     }
 
+    // MARK: - 価格
+
+    private var priceCard: some View {
+        SectionCard(title: "価格", subtitle: "平均価格に使います。あとで編集できます") {
+            numberField(
+                title: String(localized: "価格（税込）") + " (\(draft.currencyCode))",
+                text: $draft.priceText,
+                error: draft.priceError
+            )
+        }
+    }
+
     // MARK: - スープ
 
     private var soupCard: some View {
@@ -178,7 +196,7 @@ struct RecordEditorView: View {
             VStack(alignment: .leading, spacing: 10) {
                 FlowLayout(spacing: 8) {
                     ForEach(soups.filter { $0.isHidden == false || $0 == draft.soup }, id: \.uuid) { soup in
-                        TagChip(title: soup.name, isSelected: draft.soup == soup) {
+                        TagChip(title: soup.localizedDisplayName, isSelected: draft.soup == soup) {
                             draft.soup = soup
                         }
                     }
@@ -219,7 +237,7 @@ struct RecordEditorView: View {
             VStack(alignment: .leading, spacing: 10) {
                 FlowLayout(spacing: 8) {
                     ForEach(orderedNoodles, id: \.uuid) { noodle in
-                        TagChip(title: noodle.name, isSelected: draft.noodles.contains(noodle)) {
+                        TagChip(title: noodle.localizedDisplayName, isSelected: draft.noodles.contains(noodle)) {
                             toggleNoodle(noodle)
                         }
                     }
@@ -260,7 +278,7 @@ struct RecordEditorView: View {
                 FlowLayout(spacing: 8) {
                     ForEach(frequentIngredients, id: \.uuid) { ingredient in
                         TagChip(
-                            title: ingredient.name,
+                            title: ingredient.localizedDisplayName,
                             isSelected: draft.ingredients.contains(ingredient),
                             isPinned: ingredient.isPinned
                         ) {
@@ -300,7 +318,7 @@ struct RecordEditorView: View {
                         .foregroundStyle(Theme.subtleText)
                     FlowLayout(spacing: 8) {
                         ForEach(draft.ingredients, id: \.uuid) { ingredient in
-                            TagChip(title: ingredient.name, isSelected: true) {
+                            TagChip(title: ingredient.localizedDisplayName, isSelected: true) {
                                 toggleIngredient(ingredient)
                             }
                         }
@@ -313,13 +331,20 @@ struct RecordEditorView: View {
     // MARK: - 詳細
 
     private var detailsCard: some View {
-        SectionCard(title: "詳細（任意）", subtitle: "価格・重量・評価・メモ・味の詳細") {
+        SectionCard(title: "詳細（任意）", subtitle: "重量・評価・メモ・味の詳細") {
             DisclosureGroup(isExpanded: $showingDetails) {
                 VStack(alignment: .leading, spacing: 14) {
-                    numberField(title: "価格（税込・円）", text: $draft.priceText, error: draft.priceError)
                     numberField(title: "合計重量（g）", text: $draft.weightText, error: nil)
-                    numberField(title: "100gあたり単価（円）", text: $draft.pricePer100gText, error: nil)
-                    numberField(title: "スープ追加料金（円）", text: $draft.soupSurchargeText, error: nil)
+                    numberField(
+                        title: String(localized: "100gあたり単価") + " (\(draft.currencyCode))",
+                        text: $draft.pricePer100gText,
+                        error: nil
+                    )
+                    numberField(
+                        title: String(localized: "スープ追加料金") + " (\(draft.currencyCode))",
+                        text: $draft.soupSurchargeText,
+                        error: nil
+                    )
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("評価").font(.subheadline.weight(.semibold))
@@ -372,7 +397,7 @@ struct RecordEditorView: View {
 
     private func numberField(title: String, text: Binding<String>, error: String?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.subheadline.weight(.semibold))
+            Text(LocalizedStringKey(title)).font(.subheadline.weight(.semibold))
             TextField("未入力可", text: text)
                 .keyboardType(.numberPad)
                 .textFieldStyle(.roundedBorder)
@@ -434,9 +459,9 @@ struct RecordEditorView: View {
             visitedStoreCount: resultingCount
         )
         if remaining == 0 {
-            return "この店舗まで無料で記録できます。次の新しい店舗から無制限版の解除が必要です。"
+            return String(localized: "この店舗まで無料で記録できます。次の新しい店舗から無制限版の解除が必要です。")
         }
-        return "この店舗を保存すると、無料で記録できるのはあと\(remaining)店舗です。"
+        return String(localized: "この店舗を保存すると、無料で記録できるのはあと\(remaining)店舗です。")
     }
 
     private func toggleNoodle(_ noodle: Noodle) {
@@ -463,7 +488,9 @@ struct RecordEditorView: View {
             masterNotice = nil
         case .existing(let soup):
             draft.soup = soup
-            masterNotice = "「\(soup.name)」はすでにあります。既存の候補を選びました。"
+            masterNotice = String(
+                localized: "「\(soup.localizedDisplayName)」はすでにあります。既存の候補を選びました。"
+            )
         }
         newSoupName = ""
     }
@@ -475,7 +502,9 @@ struct RecordEditorView: View {
             if draft.noodles.contains(noodle) == false { draft.noodles.append(noodle) }
         case .existing(let noodle):
             if draft.noodles.contains(noodle) == false { draft.noodles.append(noodle) }
-            masterNotice = "「\(noodle.name)」はすでにあります。既存の候補を選びました。"
+            masterNotice = String(
+                localized: "「\(noodle.localizedDisplayName)」はすでにあります。既存の候補を選びました。"
+            )
         }
         newNoodleName = ""
     }
@@ -523,7 +552,7 @@ struct RecordEditorView: View {
             try context.save()
         } catch {
             // 保存に失敗した場合は画面を閉じない（入力内容を失わせない）
-            masterNotice = "保存に失敗しました。もう一度お試しください。"
+            masterNotice = String(localized: "保存に失敗しました。もう一度お試しください。")
             return
         }
 

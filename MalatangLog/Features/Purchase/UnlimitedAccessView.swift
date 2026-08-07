@@ -21,7 +21,7 @@ struct UnlimitedAccessView: View {
                         Text("もっと麻辣湯を記録しよう")
                             .font(.largeTitle.bold())
                             .foregroundStyle(Theme.text)
-                        Text("無料版では5店舗まで記録できます。買い切りで、店舗数と記録数がずっと無制限になります。")
+                        Text("無料版では5店舗まで記録できます。買い切りで、店舗数・記録数・バックアップがずっと無制限になります。")
                             .foregroundStyle(Theme.subtleText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -96,7 +96,7 @@ struct UnlimitedAccessView: View {
             }
             .onChange(of: purchaseManager.errorMessage) { _, message in
                 guard let message else { return }
-                notice = PurchaseNotice(title: "お知らせ", message: message)
+                notice = PurchaseNotice(title: String(localized: "お知らせ"), message: message)
                 purchaseManager.clearError()
             }
         }
@@ -116,7 +116,7 @@ struct UnlimitedAccessView: View {
             Text(
                 remaining > 0
                     ? "あと\(remaining)店舗を無料で記録できます。既存店舗への記録追加は何杯でも無料です。"
-                    : "既存店舗への記録追加、閲覧、編集、バックアップは引き続き無料です。"
+                    : "既存店舗への記録追加、閲覧、編集は引き続き無料です。バックアップは無制限版で使えます。"
             )
             .font(.footnote)
             .foregroundStyle(Theme.subtleText)
@@ -137,13 +137,13 @@ struct UnlimitedAccessView: View {
         switch await purchaseManager.purchase() {
         case .purchased:
             notice = PurchaseNotice(
-                title: "購入が完了しました",
-                message: "店舗数と記録数が無制限になりました。"
+                title: String(localized: "購入が完了しました"),
+                message: String(localized: "店舗数・記録数・バックアップが無制限になりました。")
             )
         case .pending:
             notice = PurchaseNotice(
-                title: "購入は保留中です",
-                message: "承認後、自動的に無制限版が利用できるようになります。"
+                title: String(localized: "購入は保留中です"),
+                message: String(localized: "承認後、自動的に無制限版が利用できるようになります。")
             )
         case .cancelled:
             break
@@ -153,10 +153,12 @@ struct UnlimitedAccessView: View {
     private func restore() async {
         let restored = await purchaseManager.restore()
         notice = PurchaseNotice(
-            title: restored ? "購入を復元しました" : "購入が見つかりませんでした",
+            title: restored
+                ? String(localized: "購入を復元しました")
+                : String(localized: "購入が見つかりませんでした"),
             message: restored
-                ? "無制限版が利用できるようになりました。"
-                : "このApple Accountで復元できる購入はありませんでした。"
+                ? String(localized: "無制限版が利用できるようになりました。")
+                : String(localized: "このApple Accountで復元できる購入はありませんでした。")
         )
     }
 
@@ -166,7 +168,7 @@ struct UnlimitedAccessView: View {
     }
 
     private func feature(_ text: String, symbol: String) -> some View {
-        Label(text, systemImage: symbol)
+        Label(AppLocalization.string(text), systemImage: symbol)
             .font(.headline)
             .foregroundStyle(Theme.text)
             .fixedSize(horizontal: false, vertical: true)

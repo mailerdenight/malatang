@@ -36,31 +36,93 @@ final class MapLauncherTests: XCTestCase {
     func testAppleMapURLIsGeneratedForCoordinate() throws {
         let destination = MapLauncher.Destination.coordinate(latitude: 35.0, longitude: 139.0, label: "店")
         let url = try XCTUnwrap(MapLauncher.mapURL(destination, provider: .apple))
-        XCTAssertTrue(url.absoluteString.contains("maps.apple.com"))
-        XCTAssertTrue(url.absoluteString.contains("35.0,139.0"))
+        XCTAssertEqual(url.scheme, "https")
+        XCTAssertEqual(url.host, "maps.apple.com")
+        XCTAssertEqual(queryValue("ll", in: url), "35.000000,139.000000")
+        XCTAssertEqual(queryValue("q", in: url), "店")
     }
 
     func testAppleDirectionsURLIsGeneratedForQuery() throws {
         let destination = MapLauncher.Destination.query("麻辣湯 新宿")
         let url = try XCTUnwrap(MapLauncher.directionsURL(destination, provider: .apple))
-        XCTAssertTrue(url.absoluteString.contains("daddr="))
+        XCTAssertEqual(url.scheme, "https")
+        XCTAssertEqual(url.host, "maps.apple.com")
+        XCTAssertEqual(queryValue("daddr", in: url), "麻辣湯 新宿")
+        XCTAssertNil(queryValue("dirflg", in: url), "移動手段は地図アプリ側で選べる")
     }
 
-    func testGoogleURLFallsBackToWebWhenAppMissing() throws {
-        // シミュレータには Googleマップ が入っていないため、Web URL が返る
+    func testGoogleMapAlwaysUsesHTTPSUniversalURL() throws {
         let destination = MapLauncher.Destination.coordinate(latitude: 35.0, longitude: 139.0, label: "店")
         let url = try XCTUnwrap(MapLauncher.mapURL(destination, provider: .google))
-        if MapLauncher.isGoogleMapsInstalled {
-            XCTAssertEqual(url.scheme, "comgooglemaps")
-        } else {
-            XCTAssertTrue(url.absoluteString.hasPrefix("https://www.google.com/maps"))
-        }
+
+        XCTAssertEqual(url.scheme, "https")
+        XCTAssertEqual(url.host, "www.google.com")
+        XCTAssertEqual(url.path, "/maps/search")
+        XCTAssertEqual(queryValue("api", in: url), "1")
+        XCTAssertEqual(queryValue("query", in: url), "35.000000,139.000000")
     }
 
     func testGoogleQueryKeepsReservedCharactersInsideSearchText() throws {
-        let destination = MapLauncher.Destination.query("A&B麻辣湯 東京都千代田区")
+        let query = "A&B+麻辣湯? Hải Châu #1"
+        let destination = MapLauncher.Destination.query(query)
         let url = try XCTUnwrap(MapLauncher.mapURL(destination, provider: .google))
 
+        XCTAssertEqual(queryValue("query", in: url), query)
         XCTAssertTrue(url.absoluteString.contains("A%26B"))
+    }
+
+    func testDirectionsDoNotForceTravelMode() throws {
+        let destination = MapLauncher.Destination.query("Malatang Da Nang")
+        let url = try XCTUnwrap(MapLauncher.directionsURL(destination, provider: .google))
+
+        XCTAssertEqual(url.path, "/maps/dir")
+        XCTAssertEqual(queryValue("destination", in: url), "Malatang Da Nang")
+        XCTAssertNil(queryValue("travelmode", in: url))
+        XCTAssertNil(queryValue("directionsmode", in: url))
+    }
+
+    func testInvalidCoordinateFallsBackToLabelQueryForBothProviders() throws {
+        let destination = MapLauncher.Destination.coordinate(
+            latitude: 123,
+            longitude: 456,
+            label: "Malatang Da Nang"
+        )
+
+        let googleMap = try XCTUnwrap(MapLauncher.mapURL(destination, provider: .google))
+        let appleMap = try XCTUnwrap(MapLauncher.mapURL(destination, provider: .apple))
+        let googleDirections = try XCTUnwrap(
+            MapLauncher.directionsURL(destination, provider: .google)
+        )
+        let appleDirections = try XCTUnwrap(
+            MapLauncher.directionsURL(destination, provider: .apple)
+        )
+
+        XCTAssertEqual(queryValue("query", in: googleMap), "Malatang Da Nang")
+        XCTAssertEqual(queryValue("q", in: appleMap), "Malatang Da Nang")
+        XCTAssertEqual(queryValue("destination", in: googleDirections), "Malatang Da Nang")
+        XCTAssertEqual(queryValue("daddr", in: appleDirections), "Malatang Da Nang")
+    }
+
+    func testDestinationIgnoresInvalidStoredCoordinate() {
+        let store = Store(
+            name: "座標不正店",
+            address: "Da Nang",
+            latitude: 100,
+            longitude: 200
+        )
+
+        if case .query(let text) = MapLauncher.Destination.make(for: store) {
+            XCTAssertTrue(text.contains("座標不正店"))
+            XCTAssertTrue(text.contains("Da Nang"))
+        } else {
+            XCTFail("無効座標は店名・住所検索へフォールバックする")
+        }
+    }
+
+    private func queryValue(_ name: String, in url: URL) -> String? {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?
+            .first { $0.name == name }?
+            .value
     }
 }

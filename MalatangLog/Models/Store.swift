@@ -66,6 +66,14 @@ extension Store {
         return prices.reduce(0, +) / prices.count
     }
 
+    func averagePrice(currencyCode: String) -> Int? {
+        let prices = servings
+            .filter { $0.currencyCode == currencyCode }
+            .compactMap(\.priceYen)
+        guard prices.isEmpty == false else { return nil }
+        return prices.reduce(0, +) / prices.count
+    }
+
     var lastVisit: Date? {
         servings.map(\.date).max()
     }

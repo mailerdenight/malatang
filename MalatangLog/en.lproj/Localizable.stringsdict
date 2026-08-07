@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%lld回</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld visit</string>
+			<key>other</key><string>%lld visits</string>
+		</dict>
+	</dict>
+	<key>%lld店を表示</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld store shown</string>
+			<key>other</key><string>%lld stores shown</string>
+		</dict>
+	</dict>
+	<key>%lld杯</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld bowl</string>
+			<key>other</key><string>%lld bowls</string>
+		</dict>
+	</dict>
+	<key>保存済みの%lld店を表示</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld saved store shown</string>
+			<key>other</key><string>%lld saved stores shown</string>
+		</dict>
+	</dict>
+	<key>具材 %lld件</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld ingredient</string>
+			<key>other</key><string>%lld ingredients</string>
+		</dict>
+	</dict>
+	<key>選択中 %lld件</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld selected</string>
+			<key>other</key><string>%lld selected</string>
+		</dict>
+	</dict>
+	<key>%lld件</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld item</string>
+			<key>other</key><string>%lld items</string>
+		</dict>
+	</dict>
+	<key>あと%lld店舗を無料で記録できます。</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>You can log %lld more store for free.</string>
+			<key>other</key><string>You can log %lld more stores for free.</string>
+		</dict>
+	</dict>
+	<key>この店舗を保存すると、無料で記録できるのはあと%lld店舗です。</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>After saving this store, you can log %lld more store for free.</string>
+			<key>other</key><string>After saving this store, you can log %lld more stores for free.</string>
+		</dict>
+	</dict>
+	<key>あと%lld店舗を無料で記録できます。既存店舗への記録追加は何杯でも無料です。</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>You can log %lld more store for free. Add as many bowls as you like at existing stores.</string>
+			<key>other</key><string>You can log %lld more stores for free. Add as many bowls as you like at existing stores.</string>
+		</dict>
+	</dict>
+	<key>%lld枚</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key><string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key><string>lld</string>
+			<key>one</key><string>%lld photo</string>
+			<key>other</key><string>%lld photos</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

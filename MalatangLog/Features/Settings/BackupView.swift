@@ -4,11 +4,15 @@ import UniformTypeIdentifiers
 
 struct BackupView: View {
     @Environment(\.modelContext) private var context
+    @Environment(PurchaseManager.self) private var purchaseManager
+    @Query private var servings: [Serving]
 
     @State private var estimate: ExportEstimate?
     @State private var exportURL: URL?
     @State private var showingShare = false
     @State private var showingImporter = false
+    @State private var showingUnlimitedAccess = false
+    @State private var pendingProAction: BackupProAction?
     @State private var pendingInspection: BackupService.Inspection?
     @State private var pendingMode: RestoreMode = .append
     @State private var showingReplaceConfirm1 = false
@@ -18,6 +22,14 @@ struct BackupView: View {
 
     static var archiveType: UTType {
         UTType(exportedAs: BackupFormat.uti, conformingTo: .data)
+    }
+
+    private var visitedStoreCount: Int {
+        Set(
+            servings
+                .filter { SampleDataService.isSample($0) == false }
+                .compactMap { $0.store?.uuid }
+        ).count
     }
 
     var body: some View {
@@ -45,6 +57,13 @@ struct BackupView: View {
             if let exportURL {
                 ActivityView(items: [exportURL])
             }
+        }
+        .sheet(isPresented: $showingUnlimitedAccess) {
+            UnlimitedAccessView(visitedStoreCount: visitedStoreCount)
+        }
+        .onChange(of: showingUnlimitedAccess) { _, isShowing in
+            guard isShowing == false else { return }
+            continuePendingProAction()
         }
         .fileImporter(
             isPresented: $showingImporter,
@@ -80,14 +99,14 @@ struct BackupView: View {
             VStack(alignment: .leading, spacing: 12) {
                 if let estimate {
                     VStack(alignment: .leading, spacing: 4) {
-                        infoRow("記録", "\(estimate.servingCount)件")
-                        infoRow("写真", "\(estimate.photoCount)枚")
-                        infoRow("店舗", "\(estimate.storeCount)件")
+                        infoRow("記録", String(localized: "\(estimate.servingCount)件"))
+                        infoRow("写真", String(localized: "\(estimate.photoCount)枚"))
+                        infoRow("店舗", String(localized: "\(estimate.storeCount)件"))
                         infoRow("推定容量", estimate.estimatedSizeText)
                     }
                 }
                 Button {
-                    runExport()
+                    requireUnlockThen(.export)
                 } label: {
                     Label("バックアップを書き出す", systemImage: "square.and.arrow.up")
                         .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
@@ -95,6 +114,12 @@ struct BackupView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(Theme.primary)
                 .disabled((estimate?.servingCount ?? 0) == 0)
+
+                if purchaseManager.isUnlocked == false {
+                    Text("バックアップの書き出しは無制限版で使えます。金額は購入画面で確認できます。")
+                        .font(.caption)
+                        .foregroundStyle(Theme.subtleText)
+                }
 
                 Text("書き出したファイル（.malaarchive）は「ファイル」アプリやiCloud Driveなど、お好きな場所に保存できます。")
                     .font(.caption)
@@ -110,7 +135,7 @@ struct BackupView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Picker("復元方式", selection: $pendingMode) {
                     ForEach(RestoreMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
+                        Text(verbatim: mode.title).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -121,14 +146,18 @@ struct BackupView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button {
-                    errorMessage = nil
-                    result = nil
-                    showingImporter = true
+                    requireUnlockThen(.import)
                 } label: {
                     Label("バックアップファイルを選ぶ", systemImage: "square.and.arrow.down")
                         .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
                 }
                 .buttonStyle(.bordered)
+
+                if purchaseManager.isUnlocked == false {
+                    Text("バックアップからの復元は無制限版で使えます。押すと購入画面で金額を確認できます。")
+                        .font(.caption)
+                        .foregroundStyle(Theme.subtleText)
+                }
             }
         }
     }
@@ -136,13 +165,13 @@ struct BackupView: View {
     private func resultCard(_ result: RestoreResult) -> some View {
         SectionCard(title: "復元しました", subtitle: result.mode.title) {
             VStack(alignment: .leading, spacing: 4) {
-                infoRow("追加した記録", "\(result.addedServings)件")
-                infoRow("重複でスキップ", "\(result.skippedServings)件")
-                infoRow("追加した店舗", "\(result.addedStores)件")
-                infoRow("追加したマスター", "\(result.addedMasters)件")
-                infoRow("復元した写真", "\(result.restoredPhotos)枚")
+                infoRow("追加した記録", String(localized: "\(result.addedServings)件"))
+                infoRow("重複でスキップ", String(localized: "\(result.skippedServings)件"))
+                infoRow("追加した店舗", String(localized: "\(result.addedStores)件"))
+                infoRow("追加したマスター", String(localized: "\(result.addedMasters)件"))
+                infoRow("復元した写真", String(localized: "\(result.restoredPhotos)枚"))
                 if result.missingPhotos > 0 {
-                    infoRow("見つからない写真", "\(result.missingPhotos)枚")
+                    infoRow("見つからない写真", String(localized: "\(result.missingPhotos)枚"))
                 }
             }
         }
@@ -150,14 +179,40 @@ struct BackupView: View {
 
     private func infoRow(_ label: String, _ value: String) -> some View {
         HStack {
-            Text(label).font(.subheadline).foregroundStyle(Theme.subtleText)
+            Text(LocalizedStringKey(label)).font(.subheadline).foregroundStyle(Theme.subtleText)
             Spacer()
-            Text(value).font(.body.weight(.medium).monospacedDigit())
+            Text(verbatim: value).font(.body.weight(.medium).monospacedDigit())
         }
         .frame(minHeight: 28)
     }
 
     // MARK: - 処理
+
+    private func requireUnlockThen(_ action: BackupProAction) {
+        errorMessage = nil
+        result = nil
+        guard purchaseManager.isUnlocked == false else {
+            perform(action)
+            return
+        }
+        pendingProAction = action
+        showingUnlimitedAccess = true
+    }
+
+    private func continuePendingProAction() {
+        guard let pendingProAction, purchaseManager.isUnlocked else { return }
+        self.pendingProAction = nil
+        perform(pendingProAction)
+    }
+
+    private func perform(_ action: BackupProAction) {
+        switch action {
+        case .export:
+            runExport()
+        case .import:
+            showingImporter = true
+        }
+    }
 
     private func runExport() {
         errorMessage = nil
@@ -200,4 +255,9 @@ struct BackupView: View {
         }
         pendingInspection = nil
     }
+}
+
+private enum BackupProAction {
+    case export
+    case `import`
 }

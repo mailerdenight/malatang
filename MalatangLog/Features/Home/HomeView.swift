@@ -2,6 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(CurrencySettings.self) private var currencySettings
     @Query(sort: \Serving.date, order: .reverse) private var servings: [Serving]
 
     @State private var showingSettings = false
@@ -30,8 +32,14 @@ struct HomeView: View {
         }
     }
 
+    private var baseCurrencyCode: String {
+        currencySettings.baseCurrencyCode(for: servings)
+    }
+
     private var monthlyAveragePrice: Int? {
-        let prices = thisMonthServings.compactMap(\.priceYen)
+        let prices = thisMonthServings
+            .filter { $0.currencyCode == baseCurrencyCode }
+            .compactMap(\.priceYen)
         guard prices.isEmpty == false else { return nil }
         return prices.reduce(0, +) / prices.count
     }
@@ -77,11 +85,22 @@ struct HomeView: View {
     }
 
     private var hallOfFameCard: some View {
-        SectionCard(title: "👑 殿堂入り", subtitle: "また食べたい、特別な一杯") {
+        SectionCard(
+            title: "👑 殿堂入り",
+            subtitle: hallOfFame.count > 1
+                ? "また食べたい、特別な一杯（長押しで並び替え）"
+                : "また食べたい、特別な一杯"
+        ) {
             if hallOfFame.isEmpty {
                 Text("記録の詳細から、お気に入りの一杯を殿堂入りにできます。")
                     .font(.footnote)
                     .foregroundStyle(Theme.subtleText)
+            } else if let onlyServing = hallOfFame.first, hallOfFame.count == 1 {
+                NavigationLink(value: onlyServing) {
+                    ServingHighlightCard(serving: onlyServing)
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 horizontalCards(hallOfFame)
             }
@@ -133,7 +152,8 @@ struct HomeView: View {
                 Divider()
                 monthlyMetric(
                     title: "平均価格",
-                    value: monthlyAveragePrice.map { "¥\($0.formatted())" } ?? "—",
+                    value: monthlyAveragePrice.map { currencySettings.format($0, code: baseCurrencyCode) }
+                        ?? "—",
                     unit: ""
                 )
             }
@@ -143,14 +163,14 @@ struct HomeView: View {
 
     private func monthlyMetric(title: String, value: String, unit: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.caption)
                 .foregroundStyle(Theme.subtleText)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value)
+                Text(verbatim: value)
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
                 if unit.isEmpty == false {
-                    Text(unit)
+                    Text(LocalizedStringKey(unit))
                         .font(.caption)
                         .foregroundStyle(Theme.subtleText)
                 }
@@ -168,11 +188,45 @@ struct HomeView: View {
                         ServingHighlightCard(serving: serving)
                     }
                     .buttonStyle(.plain)
+                    .draggable(serving.uuid.uuidString)
+                    .dropDestination(for: String.self) { droppedItems, _ in
+                        guard
+                            let droppedID = droppedItems.first.flatMap(UUID.init(uuidString:))
+                        else {
+                            return false
+                        }
+                        return reorderHallOfFame(droppedID: droppedID, targetID: serving.uuid)
+                    }
+                    .accessibilityHint("長押ししてドラッグすると、殿堂入りの表示順を変更できます")
                 }
             }
             .padding(.horizontal, 2)
             .padding(.vertical, 2)
         }
+    }
+
+    private func reorderHallOfFame(droppedID: UUID, targetID: UUID) -> Bool {
+        guard
+            droppedID != targetID,
+            let sourceIndex = hallOfFame.firstIndex(where: { $0.uuid == droppedID }),
+            let targetIndex = hallOfFame.firstIndex(where: { $0.uuid == targetID })
+        else {
+            return false
+        }
+
+        var reordered = hallOfFame
+        let movedServing = reordered.remove(at: sourceIndex)
+        let adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+        reordered.insert(movedServing, at: min(adjustedTargetIndex, reordered.endIndex))
+
+        let latestPosition = Date()
+        withAnimation(.snappy) {
+            for (index, serving) in reordered.enumerated() {
+                serving.hallOfFameMarkedAt = latestPosition.addingTimeInterval(-Double(index))
+            }
+        }
+        try? modelContext.save()
+        return true
     }
 }
 
@@ -201,7 +255,11 @@ struct ServingHighlightCard: View {
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .foregroundStyle(Theme.text)
-            Text(SampleDataService.isSample(serving) ? serving.memo : serving.orderSummary)
+            Text(
+                SampleDataService.isSample(serving)
+                    ? SampleDataService.displayMemo(for: serving)
+                    : serving.orderSummary
+            )
                 .font(.caption)
                 .foregroundStyle(Theme.subtleText)
                 .lineLimit(2)

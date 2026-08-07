@@ -15,6 +15,9 @@ struct StorePickerView: View {
 
     @State private var nameInput = ""
     @State private var mapQuery = ""
+    @State private var isWaitingForNearbyLocation = false
+    @State private var nearbyLocationMessage: String?
+    @State private var nearbyLocationRequestID = UUID()
 
     private var normalizedInput: String { MasterService.normalize(nameInput) }
 
@@ -51,6 +54,24 @@ struct StorePickerView: View {
                         .disabled(normalizedInput.isEmpty)
                         .font(.body.weight(.semibold))
                 }
+            }
+            .onReceive(location.$currentLocation) { currentLocation in
+                guard isWaitingForNearbyLocation, let currentLocation else { return }
+                finishNearbySearch(at: currentLocation.coordinate)
+            }
+            .onChange(of: location.authorizationStatus) { _, status in
+                guard isWaitingForNearbyLocation else { return }
+                if status == .denied || status == .restricted {
+                    isWaitingForNearbyLocation = false
+                    nearbyLocationMessage = String(localized: "現在地を利用できません。店名・地域名で検索するか、店名を直接入力してください。")
+                }
+            }
+            .task(id: nearbyLocationRequestID) {
+                guard isWaitingForNearbyLocation else { return }
+                try? await Task.sleep(for: .seconds(10))
+                guard Task.isCancelled == false, isWaitingForNearbyLocation else { return }
+                isWaitingForNearbyLocation = false
+                nearbyLocationMessage = String(localized: "現在地を取得できませんでした。店名・地域名で検索するか、店名を直接入力してください。")
             }
         }
     }
@@ -94,7 +115,7 @@ struct StorePickerView: View {
                                     .font(.body)
                                     .foregroundStyle(Theme.text)
                                 if store.address.isEmpty == false {
-                                    Text(store.address)
+                                    Text(verbatim: SampleDataService.displayAddress(for: store))
                                         .font(.caption)
                                         .foregroundStyle(Theme.subtleText)
                                         .lineLimit(1)
@@ -132,7 +153,15 @@ struct StorePickerView: View {
                         .disabled(MasterService.normalize(mapQuery).isEmpty)
                 }
 
-                if location.isAuthorized {
+                if isWaitingForNearbyLocation {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("現在地を取得中…")
+                            .font(.footnote)
+                            .foregroundStyle(Theme.subtleText)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
+                } else if location.isAuthorized {
                     Button {
                         runNearbySearch()
                     } label: {
@@ -142,12 +171,18 @@ struct StorePickerView: View {
                     .buttonStyle(.bordered)
                 } else if location.isUndetermined {
                     Button {
-                        location.requestAuthorization()
+                        runNearbySearch()
                     } label: {
                         Label("現在地の利用を許可する", systemImage: "location")
                             .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
                     }
                     .buttonStyle(.bordered)
+                }
+
+                if let nearbyLocationMessage {
+                    Text(nearbyLocationMessage)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.subtleText)
                 }
 
                 searchResults
@@ -166,13 +201,19 @@ struct StorePickerView: View {
                 Text("検索中…").font(.footnote).foregroundStyle(Theme.subtleText)
             }
         case .empty:
-            Text("該当する店舗が見つかりませんでした。店名を直接入力しても保存できます。")
-                .font(.footnote)
-                .foregroundStyle(Theme.subtleText)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("該当する店舗が見つかりませんでした。店名を直接入力しても保存できます。")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.subtleText)
+                googleMapsFallback
+            }
         case .failed(let message):
-            Text(message)
-                .font(.footnote)
-                .foregroundStyle(Theme.primary)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.primary)
+                googleMapsFallback
+            }
         case .results(let items):
             VStack(spacing: 0) {
                 ForEach(items) { item in
@@ -180,7 +221,7 @@ struct StorePickerView: View {
                         adopt(item)
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(item.name)
+                            Text(verbatim: item.name)
                                 .font(.body)
                                 .foregroundStyle(Theme.text)
                             if item.address.isEmpty == false {
@@ -203,18 +244,46 @@ struct StorePickerView: View {
 
     // MARK: - 操作
 
+    @ViewBuilder
+    private var googleMapsFallback: some View {
+        let keyword = MasterService.normalize(mapQuery)
+        if keyword.isEmpty == false {
+            Button {
+                MapLauncher.openMap(.query(keyword), using: .google)
+            } label: {
+                Label("Googleマップで探す", systemImage: "arrow.up.right.square")
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
     private func runKeywordSearch() {
         let keyword = MasterService.normalize(mapQuery)
         guard keyword.isEmpty == false else { return }
+        isWaitingForNearbyLocation = false
+        nearbyLocationMessage = nil
         search.search(keyword: keyword, near: location.currentLocation?.coordinate)
     }
 
     private func runNearbySearch() {
-        location.requestOneShotLocation()
-        guard let coordinate = location.currentLocation?.coordinate else {
-            search.search(keyword: StoreSearchService.defaultKeyword)
+        nearbyLocationMessage = nil
+        if let coordinate = location.currentLocation?.coordinate {
+            finishNearbySearch(at: coordinate)
             return
         }
+
+        isWaitingForNearbyLocation = true
+        nearbyLocationRequestID = UUID()
+        if location.isUndetermined {
+            location.requestAuthorization()
+        } else {
+            location.requestOneShotLocation()
+        }
+    }
+
+    private func finishNearbySearch(at coordinate: CLLocationCoordinate2D) {
+        isWaitingForNearbyLocation = false
+        nearbyLocationMessage = nil
         search.searchNearby(coordinate: coordinate)
     }
 

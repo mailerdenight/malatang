@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "麻辣湯ログ";
+"CFBundleName" = "麻辣湯ログ";
+"NSCameraUsageDescription" = "一杯の写真を撮影して記録に添えるために使用します。許可しなくても記録機能は利用できます。";
+"NSLocationWhenInUseUsageDescription" = "現在地の近くにある店舗を検索するために使用します。許可しなくても店名の手入力と地図検索は利用できます。";
+"NSPhotoLibraryUsageDescription" = "写真ライブラリから一杯の写真を選ぶために使用します。許可しなくても記録機能は利用できます。";
+"UTTypeDescription" = "麻辣湯ログ バックアップ";
+"Malatang Log Backup" = "麻辣湯ログ バックアップ";

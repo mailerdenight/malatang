@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "Nhật ký Malatang";
+"CFBundleName" = "Nhật ký Malatang";
+"NSCameraUsageDescription" = "Dùng để chụp ảnh món ăn và đính kèm vào nhật ký. Bạn vẫn có thể ghi nhật ký nếu không cho phép.";
+"NSLocationWhenInUseUsageDescription" = "Dùng để tìm quán gần vị trí hiện tại. Bạn vẫn có thể nhập tên quán và tìm trên bản đồ nếu không cho phép.";
+"NSPhotoLibraryUsageDescription" = "Dùng để chọn ảnh món ăn từ thư viện. Bạn vẫn có thể ghi nhật ký nếu không cho phép.";
+"UTTypeDescription" = "Bản sao lưu Nhật ký Malatang";
+"Malatang Log Backup" = "Bản sao lưu Nhật ký Malatang";

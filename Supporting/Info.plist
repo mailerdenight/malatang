@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>ja</string>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>麻辣湯ログ</string>
+	<string>Malatang Log</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -38,11 +38,11 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>一杯の写真を撮影して記録に添えるために使用します。許可しなくても記録機能は利用できます。</string>
+	<string>Used to take a photo of your bowl and attach it to your log. You can still create logs without allowing access.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>写真ライブラリから一杯の写真を選ぶために使用します。許可しなくても記録機能は利用できます。</string>
+	<string>Used to choose a photo of your bowl from your library. You can still create logs without allowing access.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>現在地の近くにある店舗を検索するために使用します。許可しなくても店名の手入力と地図検索は利用できます。</string>
+	<string>Used to find stores near your current location. You can still enter store names and search the map without allowing access.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
@@ -53,7 +53,7 @@
 			<key>UTTypeIdentifier</key>
 			<string>com.malatanglog.archive</string>
 			<key>UTTypeDescription</key>
-			<string>麻辣湯ログ バックアップ</string>
+			<string>Malatang Log Backup</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>

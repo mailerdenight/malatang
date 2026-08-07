@@ -26,18 +26,25 @@ extension Color {
 }
 
 enum Theme {
-    /// iOS標準の背景。ライト／ダークに自動追従する。
-    static let background = Color(uiColor: .systemGroupedBackground)
-    /// 麻辣の赤
-    static let primary = Color(lightHex: 0xC74332, darkHex: 0xFF7462)
-    /// 深い緑
-    static let secondary = Color(lightHex: 0x2F6B55, darkHex: 0x71B99D)
-    /// 金
-    static let accent = Color(lightHex: 0xB07818, darkHex: 0xE2AE50)
+    @MainActor
+    private static var selectedTheme: AppTheme {
+        AppearanceSettings.shared.theme
+    }
+
+    @MainActor
+    static var background: Color { selectedTheme.backgroundColor }
+    @MainActor
+    static var primary: Color { selectedTheme.primaryColor }
+    @MainActor
+    static var secondary: Color { selectedTheme.secondaryColor }
+    @MainActor
+    static var accent: Color { selectedTheme.accentColor }
     static let text = Color(uiColor: .label)
     static let subtleText = Color(uiColor: .secondaryLabel)
-    static let surface = Color(uiColor: .systemBackground)
-    static let card = Color(uiColor: .systemBackground)
+    @MainActor
+    static var surface: Color { selectedTheme.cardColor }
+    @MainActor
+    static var card: Color { selectedTheme.cardColor }
     static let hairline = Color(uiColor: .separator)
     static let shadow = Color.black.opacity(0.06)
 
@@ -58,25 +65,84 @@ struct WarmBackground: ViewModifier {
     }
 }
 
+enum AppTheme: String, CaseIterable, Identifiable {
+    case forest
+    case blossom
+    case ocean
+    case sunshine
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .forest: return String(localized: "フォレスト")
+        case .blossom: return String(localized: "ブロッサム")
+        case .ocean: return String(localized: "オーシャン")
+        case .sunshine: return String(localized: "サンシャイン")
+        }
+    }
+
+    var primaryColor: Color {
+        switch self {
+        case .forest: return Color(hex: 0x4A7C59)
+        case .blossom: return Color(hex: 0xC4687A)
+        case .ocean: return Color(hex: 0x4A7FA8)
+        case .sunshine: return Color(hex: 0xC09020)
+        }
+    }
+
+    var secondaryColor: Color {
+        switch self {
+        case .forest: return Color(hex: 0x6B9E7A)
+        case .blossom: return Color(hex: 0xE8A8B8)
+        case .ocean: return Color(hex: 0x7AAFD0)
+        case .sunshine: return Color(hex: 0xE0BC6A)
+        }
+    }
+
+    var accentColor: Color {
+        switch self {
+        case .forest: return Color(hex: 0x2D5A3D)
+        case .blossom: return Color(hex: 0x8B4558)
+        case .ocean: return Color(hex: 0x2B5F84)
+        case .sunshine: return Color(hex: 0x8B6C10)
+        }
+    }
+
+    var backgroundColor: Color {
+        switch self {
+        case .forest:
+            return Color(lightHex: 0xF5F5F0, darkHex: 0x1C1C1F)
+        case .blossom:
+            return Color(lightHex: 0xFCF5F7, darkHex: 0x1C1C1F)
+        case .ocean:
+            return Color(lightHex: 0xF0F7FC, darkHex: 0x1C1C1F)
+        case .sunshine:
+            return Color(lightHex: 0xFCFAED, darkHex: 0x1C1C1F)
+        }
+    }
+
+    var cardColor: Color {
+        Color(lightHex: 0xFFFFFF, darkHex: 0x2B2B2E)
+    }
+}
+
 enum AppearancePreference: String, CaseIterable, Identifiable {
     case light
-    case system
     case dark
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .light: return "ライト"
-        case .system: return "端末に合わせる"
-        case .dark: return "ダーク"
+        case .light: return String(localized: "ライト")
+        case .dark: return String(localized: "ダーク")
         }
     }
 
-    var colorScheme: ColorScheme? {
+    var colorScheme: ColorScheme {
         switch self {
         case .light: return .light
-        case .system: return nil
         case .dark: return .dark
         }
     }

@@ -23,7 +23,7 @@ struct TagChip: View {
                         .font(.caption.weight(.bold))
                         .accessibilityHidden(true)
                 }
-                Text(title)
+                Text(verbatim: title)
                     .font(.callout)
                     .lineLimit(1)
             }
@@ -39,7 +39,9 @@ struct TagChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-        .accessibilityLabel(isSelected ? "\(title)、選択中" : title)
+        .accessibilityLabel(
+            isSelected ? String(localized: "\(title)、選択中") : title
+        )
     }
 }
 
@@ -54,7 +56,7 @@ struct LevelSelector: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.subheadline.weight(.semibold))
                 Spacer()
                 Text("\(value) / \(maximum)")
@@ -84,7 +86,9 @@ struct LevelSelector: View {
                         .frame(height: 44)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(title) \(level)")
+                    .accessibilityLabel(
+                        String(localized: "\(AppLocalization.string(title)) \(level)")
+                    )
                     .accessibilityAddTraits(value == level ? [.isSelected] : [])
                 }
             }
@@ -152,11 +156,11 @@ struct SectionCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(Theme.title(17))
                     .foregroundStyle(Theme.text)
                 if let subtitle {
-                    Text(subtitle)
+                    Text(LocalizedStringKey(subtitle))
                         .font(.caption)
                         .foregroundStyle(Theme.subtleText)
                 }
@@ -260,9 +264,9 @@ struct EmptyStateView: View {
             Image(systemName: symbol)
                 .font(.system(size: 34))
                 .foregroundStyle(Theme.secondary.opacity(0.5))
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(Theme.title(17))
-            Text(message)
+            Text(LocalizedStringKey(message))
                 .font(.footnote)
                 .foregroundStyle(Theme.subtleText)
                 .multilineTextAlignment(.center)

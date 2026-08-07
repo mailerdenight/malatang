@@ -144,10 +144,18 @@
 				};
 			};
 			buildConfigurationList = 1A2B3C00000000000000000C /* Build configuration list for PBXProject "MalatangLog" */;
-			developmentRegion = ja;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				en,
 				ja,
+				vi,
+				ko,
+				"zh-Hans",
+				"zh-Hant",
+				th,
+				de,
+				id,
 				Base,
 			);
 			mainGroup = 1A2B3C000000000000000002;

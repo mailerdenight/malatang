@@ -3,6 +3,7 @@ import SwiftData
 
 struct CatalogView: View {
     @Environment(\.modelContext) private var context
+    @Environment(CurrencySettings.self) private var currencySettings
     @Query(sort: \Serving.date, order: .reverse) private var servings: [Serving]
 
     @State private var query = ""
@@ -13,9 +14,19 @@ struct CatalogView: View {
     @State private var showingDeleteConfirmation = false
     @State private var favorites = FavoriteStoreService.shared
 
+    private var baseCurrencyCode: String {
+        currencySettings.baseCurrencyCode(for: servings)
+    }
+
     private var results: [Serving] {
         let filtered = servings
-            .filter { filter.matches($0, favoriteStoreIDs: favorites.ids) }
+            .filter {
+                filter.matches(
+                    $0,
+                    favoriteStoreIDs: favorites.ids,
+                    currencyCode: baseCurrencyCode
+                )
+            }
             .filter { CatalogSearch.matches($0, query: query) }
         return sortOrder.apply(to: filtered)
     }
@@ -71,7 +82,7 @@ struct CatalogView: View {
             .navigationTitle("記録一覧")
             .navigationDestination(for: Serving.self) { ServingDetailView(serving: $0) }
             .sheet(isPresented: $showingFilters) {
-                CatalogFilterView(filter: $filter)
+                CatalogFilterView(filter: $filter, currencyCode: baseCurrencyCode)
             }
             .confirmationDialog(
                 "この記録を削除しますか？",
@@ -97,7 +108,7 @@ struct CatalogView: View {
         HStack(spacing: 10) {
             Picker("並び替え", selection: $sortOrder) {
                 ForEach(CatalogSortOrder.allCases) { order in
-                    Text(order.title).tag(order)
+                    Text(verbatim: order.title).tag(order)
                 }
             }
             .pickerStyle(.menu)
@@ -131,6 +142,7 @@ struct CatalogView: View {
 }
 
 struct ServingListCard: View {
+    @Environment(CurrencySettings.self) private var currencySettings
     let serving: Serving
 
     var body: some View {
@@ -165,8 +177,9 @@ struct ServingListCard: View {
 
                 HStack(spacing: 12) {
                     Label(
-                        serving.priceYen.map { "¥\($0.formatted())" } ?? "価格未入力",
-                        systemImage: "yensign.circle"
+                        serving.priceYen.map { currencySettings.format($0, code: serving.currencyCode) }
+                            ?? String(localized: "価格未入力"),
+                        systemImage: (AppCurrency(rawValue: serving.currencyCode) ?? .jpy).systemImage
                     )
                     Label("辛さ \(serving.spiceLevel)", systemImage: "flame.fill")
                 }
@@ -197,10 +210,10 @@ enum CatalogSortOrder: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .newest: return "新しい順"
-        case .oldest: return "古い順"
-        case .rating: return "評価順"
-        case .price: return "価格順"
+        case .newest: return String(localized: "新しい順")
+        case .oldest: return String(localized: "古い順")
+        case .rating: return String(localized: "評価順")
+        case .price: return String(localized: "価格順")
         }
     }
 
@@ -226,6 +239,7 @@ enum CatalogSearch {
         if let store = serving.store {
             haystack.append(store.displayName)
             haystack.append(store.address)
+            haystack.append(SampleDataService.displayAddress(for: store))
         }
         if let soup = serving.soup { haystack.append(soup.searchHaystack) }
         haystack.append(contentsOf: serving.noodles.map(\.searchHaystack))
@@ -259,10 +273,18 @@ struct CatalogFilter {
     mutating func reset() { self = CatalogFilter() }
 
     func matches(_ serving: Serving) -> Bool {
-        matches(serving, favoriteStoreIDs: FavoriteStoreService.shared.ids)
+        matches(
+            serving,
+            favoriteStoreIDs: FavoriteStoreService.shared.ids,
+            currencyCode: AppCurrency.defaultCode()
+        )
     }
 
-    func matches(_ serving: Serving, favoriteStoreIDs: Set<UUID>) -> Bool {
+    func matches(
+        _ serving: Serving,
+        favoriteStoreIDs: Set<UUID>,
+        currencyCode: String = AppCurrency.defaultCode()
+    ) -> Bool {
         if let storeUUID, serving.store?.uuid != storeUUID { return false }
         if let soupUUID, serving.soup?.uuid != soupUUID { return false }
         if let noodleUUID, serving.noodles.contains(where: { $0.uuid == noodleUUID }) == false { return false }
@@ -270,7 +292,10 @@ struct CatalogFilter {
         if serving.rating < minRating { return false }
         if serving.spiceLevel < minSpice { return false }
         if serving.numbnessLevel < minNumbness { return false }
-        if let maximumPrice, (serving.priceYen ?? Int.max) > maximumPrice { return false }
+        if let maximumPrice {
+            if serving.currencyCode != currencyCode { return false }
+            if (serving.priceYen ?? Int.max) > maximumPrice { return false }
+        }
         if favoriteOnly {
             guard let storeID = serving.store?.uuid, favoriteStoreIDs.contains(storeID) else { return false }
         }
@@ -282,12 +307,14 @@ struct CatalogFilter {
 
 struct CatalogFilterView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(CurrencySettings.self) private var currencySettings
     @Query(sort: \Store.name) private var stores: [Store]
     @Query(sort: \Soup.sortOrder) private var soups: [Soup]
     @Query(sort: \Noodle.sortOrder) private var noodles: [Noodle]
     @Query(sort: \Ingredient.sortOrder) private var ingredients: [Ingredient]
 
     @Binding var filter: CatalogFilter
+    let currencyCode: String
 
     var body: some View {
         NavigationStack {
@@ -297,10 +324,10 @@ struct CatalogFilterView: View {
                     Stepper("辛さ \(filter.minSpice) 以上", value: $filter.minSpice, in: 0...5)
                     Picker("価格", selection: $filter.maximumPrice) {
                         Text("すべて").tag(Int?.none)
-                        Text("1,000円以下").tag(Int?.some(1_000))
-                        Text("1,500円以下").tag(Int?.some(1_500))
-                        Text("2,000円以下").tag(Int?.some(2_000))
-                        Text("3,000円以下").tag(Int?.some(3_000))
+                        Text(verbatim: "\(currencySettings.format(1_000, code: currencyCode))以下").tag(Int?.some(1_000))
+                        Text(verbatim: "\(currencySettings.format(1_500, code: currencyCode))以下").tag(Int?.some(1_500))
+                        Text(verbatim: "\(currencySettings.format(2_000, code: currencyCode))以下").tag(Int?.some(2_000))
+                        Text(verbatim: "\(currencySettings.format(3_000, code: currencyCode))以下").tag(Int?.some(3_000))
                     }
                 }
 
@@ -322,19 +349,19 @@ struct CatalogFilterView: View {
                     Picker("スープ", selection: $filter.soupUUID) {
                         Text("すべて").tag(UUID?.none)
                         ForEach(soups, id: \.uuid) { soup in
-                            Text(soup.name).tag(UUID?.some(soup.uuid))
+                            Text(verbatim: soup.localizedDisplayName).tag(UUID?.some(soup.uuid))
                         }
                     }
                     Picker("麺", selection: $filter.noodleUUID) {
                         Text("すべて").tag(UUID?.none)
                         ForEach(noodles, id: \.uuid) { noodle in
-                            Text(noodle.name).tag(UUID?.some(noodle.uuid))
+                            Text(verbatim: noodle.localizedDisplayName).tag(UUID?.some(noodle.uuid))
                         }
                     }
                     Picker("具材", selection: $filter.ingredientUUID) {
                         Text("すべて").tag(UUID?.none)
                         ForEach(ingredients.filter { $0.isHidden == false }, id: \.uuid) { ingredient in
-                            Text(ingredient.name).tag(UUID?.some(ingredient.uuid))
+                            Text(verbatim: ingredient.localizedDisplayName).tag(UUID?.some(ingredient.uuid))
                         }
                     }
                 }

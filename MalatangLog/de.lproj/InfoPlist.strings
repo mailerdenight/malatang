@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "Malatang-Log";
+"CFBundleName" = "Malatang-Log";
+"NSCameraUsageDescription" = "Damit kannst du deine Portion fotografieren und das Foto an den Eintrag anhängen. Einträge funktionieren auch ohne Kamerazugriff.";
+"NSLocationWhenInUseUsageDescription" = "Damit findest du Restaurants in der Nähe. Restaurantnamen und Kartensuche funktionieren auch ohne Standortzugriff.";
+"NSPhotoLibraryUsageDescription" = "Damit kannst du ein Foto deiner Portion aus der Mediathek auswählen. Einträge funktionieren auch ohne Zugriff.";
+"UTTypeDescription" = "Malatang-Log-Backup";
+"Malatang Log Backup" = "Malatang-Log-Backup";

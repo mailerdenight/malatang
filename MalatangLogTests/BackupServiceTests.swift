@@ -14,7 +14,14 @@ final class BackupServiceTests: XCTestCase {
         let soups = try context.fetch(FetchDescriptor<Soup>())
         let noodles = try context.fetch(FetchDescriptor<Noodle>())
         let ingredients = try context.fetch(FetchDescriptor<Ingredient>())
-        let store = MasterService.findOrCreateStore(name: "テスト店", branch: "本店", in: context)
+        let store = MasterService.findOrCreateStore(
+            name: "テスト店",
+            branch: "本店",
+            address: "Đà Nẵng, Việt Nam",
+            latitude: 16.0544,
+            longitude: 108.2022,
+            in: context
+        )
 
         let serving = Serving(
             date: Date(timeIntervalSince1970: 1_700_000_000),
@@ -61,6 +68,9 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(restoredServing.priceYen, 1_280)
         XCTAssertEqual(restoredServing.memo, "テスト記録")
         XCTAssertEqual(restoredServing.store?.displayName, "テスト店 本店")
+        XCTAssertEqual(restoredServing.store?.address, "Đà Nẵng, Việt Nam")
+        XCTAssertEqual(restoredServing.store?.latitude, 16.0544)
+        XCTAssertEqual(restoredServing.store?.longitude, 108.2022)
         XCTAssertEqual(restoredServing.noodles.count, original.noodles.count)
         XCTAssertEqual(restoredServing.ingredients.count, original.ingredients.count)
     }

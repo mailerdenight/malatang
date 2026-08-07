@@ -7,15 +7,33 @@ enum SampleDataService {
     static let sampleLatitude = 35.681236
     static let sampleLongitude = 139.767125
     static let sampleAddress = "東京都千代田区丸の内1丁目 東京駅"
+    static let sampleNoodleName = "緑豆春雨"
+    static let sampleBallName = "魚卵団子"
+    private static let sampleMemo = "世界一食べたくなる麻辣湯"
     private static let didSeedKey = "didSeedLegendaryBowlV11"
 
     static func isSample(_ serving: Serving) -> Bool {
         serving.uuid == sampleServingUUID
     }
 
+    /// 同梱サンプルの説明だけを表示言語に合わせる。ユーザーが編集した文面は原文のまま返す。
+    static func displayMemo(for serving: Serving) -> String {
+        guard isSample(serving), serving.memo == sampleMemo else { return serving.memo }
+        return AppLocalization.string(sampleMemo)
+    }
+
+    static func displayAddress(for store: Store) -> String {
+        guard store.address == sampleAddress,
+              store.servings.contains(where: isSample) else {
+            return store.address
+        }
+        return AppLocalization.string(sampleAddress)
+    }
+
     /// v1.1を初めて開いたときだけサンプルを追加する。削除後は再生成しない。
     static func seedIfNeeded(_ context: ModelContext) {
         updateExistingSampleLocation(in: context)
+        updateExistingSampleContent(in: context)
         guard UserDefaults.standard.bool(forKey: didSeedKey) == false else { return }
 
         let existing = (try? context.fetch(FetchDescriptor<Serving>())) ?? []
@@ -30,12 +48,12 @@ enum SampleDataService {
         store?.longitude = sampleLongitude
         let soups = (try? context.fetch(FetchDescriptor<Soup>())) ?? []
         let soup = soups.first { $0.name == "麻辣スープ" } ?? soups.first
-        let noodle = addedNoodle(named: "龍口春雨", context: context)
+        let noodle = addedNoodle(named: sampleNoodleName, context: context)
 
         let requestedIngredients: [(name: String, lookup: String, category: IngredientCategory)] = [
             ("ラム肉", "ラム肉", .meat),
             ("牛肉", "牛肉", .meat),
-            ("サーカス団子", "サーカス団子", .ball),
+            (sampleBallName, sampleBallName, .ball),
             ("キクラゲ", "きくらげ", .mushroom),
             ("白キクラゲ", "白きくらげ", .mushroom),
             ("湯葉", "湯葉", .soy),
@@ -60,10 +78,10 @@ enum SampleDataService {
             photoID: photoID,
             spiceLevel: 4,
             numbnessLevel: 3,
-            spiceNote: "辛さ4",
+            spiceNote: "",
             priceYen: 1_780,
             rating: 5,
-            memo: "世界一食べたくなる麻辣湯",
+            memo: sampleMemo,
             store: store,
             soup: soup,
             noodles: noodle.map { [$0] } ?? [],
@@ -95,6 +113,47 @@ enum SampleDataService {
         store.latitude = sampleLatitude
         store.longitude = sampleLongitude
         try? context.save()
+    }
+
+    /// 旧サンプルだけが作った未翻訳の自由項目を、標準マスターへ安全に置き換える。
+    private static func updateExistingSampleContent(in context: ModelContext) {
+        let servings = (try? context.fetch(FetchDescriptor<Serving>())) ?? []
+        guard let sample = servings.first(where: isSample) else { return }
+
+        var changed = false
+        let noodles = (try? context.fetch(FetchDescriptor<Noodle>())) ?? []
+        if let legacy = sample.noodles.first(where: { $0.isCustom && $0.name == "龍口春雨" }),
+           let canonical = noodles.first(where: {
+               $0.isCustom == false && $0.name == sampleNoodleName
+           }) {
+            let usedOnlyBySample = legacy.servings.allSatisfy(isSample)
+            sample.noodles = sample.noodles.map {
+                $0.uuid == legacy.uuid ? canonical : $0
+            }
+            if usedOnlyBySample { legacy.isHidden = true }
+            changed = true
+        }
+
+        let ingredients = (try? context.fetch(FetchDescriptor<Ingredient>())) ?? []
+        if let legacy = sample.ingredients.first(where: {
+            $0.isCustom && $0.name == "サーカス団子"
+        }), let canonical = ingredients.first(where: {
+            $0.isCustom == false && $0.name == sampleBallName
+        }) {
+            let usedOnlyBySample = legacy.servings.allSatisfy(isSample)
+            sample.ingredients = sample.ingredients.map {
+                $0.uuid == legacy.uuid ? canonical : $0
+            }
+            if usedOnlyBySample { MasterService.hide(legacy) }
+            changed = true
+        }
+
+        if sample.spiceNote == "辛さ4" {
+            sample.spiceNote = ""
+            changed = true
+        }
+
+        if changed { try? context.save() }
     }
 
     private static func addedNoodle(named name: String, context: ModelContext) -> Noodle? {

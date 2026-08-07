@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct AnalyticsView: View {
+    @Environment(CurrencySettings.self) private var currencySettings
     @Query private var servings: [Serving]
     @Query private var stores: [Store]
 
@@ -9,11 +10,19 @@ struct AnalyticsView: View {
         servings.filter { SampleDataService.isSample($0) == false }
     }
 
+    private var baseCurrencyCode: String {
+        currencySettings.baseCurrencyCode(for: servings)
+    }
+
     private var summary: AnalyticsSummary {
         let visitedStoreCount = stores.filter {
             $0.servings.contains { SampleDataService.isSample($0) == false }
         }.count
-        return AnalyticsSummary(servings: realServings, storeCount: visitedStoreCount)
+        return AnalyticsSummary(
+            servings: realServings,
+            storeCount: visitedStoreCount,
+            currencyCode: baseCurrencyCode
+        )
     }
 
     private var hasEnoughData: Bool { realServings.count >= 3 }
@@ -29,17 +38,18 @@ struct AnalyticsView: View {
                             EmptyStateView(
                                 symbol: "chart.bar",
                                 title: "記録が増えると表示されます",
-                                message: "3杯目からグラフが出ます。（今 \(realServings.count)杯）"
+                                message: String(
+                                    localized: "3杯目からグラフが出ます。（今 \(realServings.count)杯）"
+                                )
                             )
                         }
                     } else {
                         rankingCard(
                             title: "よく使う具材 トップ10",
-                            items: summary.topIngredients,
-                            unit: "回"
+                            items: summary.topIngredients
                         )
-                        rankingCard(title: "麺の利用回数", items: summary.noodleCounts, unit: "回")
-                        rankingCard(title: "スープの利用回数", items: summary.soupCounts, unit: "回")
+                        rankingCard(title: "麺の利用回数", items: summary.noodleCounts)
+                        rankingCard(title: "スープの利用回数", items: summary.soupCounts)
                         distributionCard(title: "辛さの分布", counts: summary.spiceDistribution, symbol: "flame.fill")
                         distributionCard(title: "痺れの分布", counts: summary.numbnessDistribution, symbol: "bolt.fill")
                     }
@@ -56,7 +66,11 @@ struct AnalyticsView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
                 statTile("総杯数", "\(summary.totalCount)", "杯")
                 statTile("訪問店舗数", "\(summary.storeCount)", "店")
-                statTile("平均価格", summary.averagePrice.map { "\($0)" } ?? "—", "円")
+                statTile(
+                    "平均価格",
+                    summary.averagePrice.map { currencySettings.format($0, code: baseCurrencyCode) } ?? "—",
+                    ""
+                )
                 statTile("今月の杯数", "\(summary.thisMonthCount)", "杯")
             }
         }
@@ -64,14 +78,14 @@ struct AnalyticsView: View {
 
     private func statTile(_ label: String, _ value: String, _ unit: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.caption)
                 .foregroundStyle(Theme.subtleText)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value)
+                Text(verbatim: value)
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.text)
-                Text(unit)
+                Text(LocalizedStringKey(unit))
                     .font(.caption)
                     .foregroundStyle(Theme.subtleText)
             }
@@ -81,25 +95,25 @@ struct AnalyticsView: View {
     }
 
     @ViewBuilder
-    private func rankingCard(title: String, items: [AnalyticsSummary.CountedItem], unit: String) -> some View {
+    private func rankingCard(title: String, items: [AnalyticsSummary.CountedItem]) -> some View {
         if items.isEmpty == false {
             SectionCard(title: title) {
                 let maximum = items.map(\.count).max() ?? 1
                 VStack(spacing: 8) {
                     ForEach(items) { item in
                         HStack(spacing: 10) {
-                            Text(item.name)
+                            Text(verbatim: item.name)
                                 .font(.subheadline)
                                 .frame(width: 96, alignment: .leading)
                                 .lineLimit(1)
                             BarView(ratio: Double(item.count) / Double(maximum), color: Theme.primary)
-                            Text("\(item.count)\(unit)")
+                            Text("\(item.count)回")
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(Theme.subtleText)
                                 .frame(width: 44, alignment: .trailing)
                         }
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(item.name) \(item.count)\(unit)")
+                        .accessibilityLabel(String(localized: "\(item.name) \(item.count)回"))
                     }
                 }
             }
@@ -172,11 +186,17 @@ struct AnalyticsSummary {
     let spiceDistribution: [Int]
     let numbnessDistribution: [Int]
 
-    init(servings: [Serving], storeCount: Int) {
+    init(
+        servings: [Serving],
+        storeCount: Int,
+        currencyCode: String = AppCurrency.defaultCode()
+    ) {
         totalCount = servings.count
         self.storeCount = storeCount
 
-        let prices = servings.compactMap(\.priceYen)
+        let prices = servings
+            .filter { $0.currencyCode == currencyCode }
+            .compactMap(\.priceYen)
         averagePrice = prices.isEmpty ? nil : prices.reduce(0, +) / prices.count
 
         let calendar = Calendar.current
@@ -186,11 +206,17 @@ struct AnalyticsSummary {
         }.count
 
         topIngredients = Self.rank(
-            servings.flatMap { $0.ingredients.map(\.name) },
+            servings.flatMap { $0.ingredients.map(\.localizedDisplayName) },
             limit: 10
         )
-        noodleCounts = Self.rank(servings.flatMap { $0.noodles.map(\.name) }, limit: 20)
-        soupCounts = Self.rank(servings.compactMap { $0.soup?.name }, limit: 20)
+        noodleCounts = Self.rank(
+            servings.flatMap { $0.noodles.map(\.localizedDisplayName) },
+            limit: 20
+        )
+        soupCounts = Self.rank(
+            servings.compactMap { $0.soup?.localizedDisplayName },
+            limit: 20
+        )
 
         var spice = Array(repeating: 0, count: 6)
         var numbness = Array(repeating: 0, count: 6)

@@ -73,6 +73,7 @@ enum BackupService {
                     numbnessLevel: serving.numbnessLevel,
                     spiceNote: serving.spiceNote,
                     priceYen: serving.priceYen,
+                    currencyCode: serving.currencyCode,
                     totalWeightGrams: serving.totalWeightGrams,
                     pricePer100gYen: serving.pricePer100gYen,
                     soupSurchargeYen: serving.soupSurchargeYen,
@@ -126,13 +127,14 @@ enum BackupService {
         ])
 
         guard let serialized = root.serializedRepresentation else {
-            throw BackupError.writeFailed("パッケージの作成に失敗しました")
+            throw BackupError.writeFailed(String(localized: "パッケージの作成に失敗しました"))
         }
 
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmm"
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        let fileName = "麻辣湯ログ_\(formatter.string(from: Date())).\(BackupFormat.fileExtension)"
+        let localizedAppName = String(localized: "麻辣湯ログ")
+        let fileName = "\(localizedAppName)_\(formatter.string(from: Date())).\(BackupFormat.fileExtension)"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
         do {
@@ -317,6 +319,7 @@ enum BackupService {
                 numbnessLevel: dto.numbnessLevel,
                 spiceNote: dto.spiceNote,
                 priceYen: dto.priceYen,
+                currencyCode: AppCurrency.normalizedCode(dto.currencyCode),
                 totalWeightGrams: dto.totalWeightGrams,
                 pricePer100gYen: dto.pricePer100gYen,
                 soupSurchargeYen: dto.soupSurchargeYen,
@@ -364,9 +367,12 @@ enum BackupService {
 }
 
 enum AppInfo {
+    static var shortVersionString: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    }
+
     static var versionString: String {
-        let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
-        return "\(short) (\(build))"
+        return "\(shortVersionString) (\(build))"
     }
 }

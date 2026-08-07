@@ -157,7 +157,7 @@ enum MasterService {
 
     // MARK: - 店舗
 
-    /// 同名・同支店の店舗があれば再利用する。
+    /// 店名に加えて座標・住所も照合し、安全に同一と判定できる店舗だけを再利用する。
     static func findOrCreateStore(
         name rawName: String,
         branch: String = "",
@@ -168,20 +168,38 @@ enum MasterService {
     ) -> Store? {
         let name = normalize(rawName)
         guard name.isEmpty == false else { return nil }
+        let normalizedBranch = normalize(branch)
         let all = (try? context.fetch(FetchDescriptor<Store>())) ?? []
-        if let hit = all.first(where: { isSameName($0.name, name) && isSameName($0.branch, branch) }) {
+        let coordinate = StoreMatchPolicy.validCoordinate(
+            latitude: latitude,
+            longitude: longitude
+        )
+        if let hit = StoreMatchPolicy.bestMatch(
+            name: name,
+            branch: normalizedBranch,
+            address: address,
+            latitude: coordinate?.latitude,
+            longitude: coordinate?.longitude,
+            among: all
+        ) {
             // 座標・住所は後から取得できたときだけ補完する（既存値は消さない）
             if hit.address.isEmpty, address.isEmpty == false { hit.address = address }
-            if hit.latitude == nil, let latitude { hit.latitude = latitude }
-            if hit.longitude == nil, let longitude { hit.longitude = longitude }
+            if StoreMatchPolicy.validCoordinate(
+                latitude: hit.latitude,
+                longitude: hit.longitude
+            ) == nil, let coordinate {
+                // 片方だけ残さず、必ず有効なペアで補完する。
+                hit.latitude = coordinate.latitude
+                hit.longitude = coordinate.longitude
+            }
             return hit
         }
         let store = Store(
             name: name,
-            branch: normalize(branch),
+            branch: normalizedBranch,
             address: address,
-            latitude: latitude,
-            longitude: longitude
+            latitude: coordinate?.latitude,
+            longitude: coordinate?.longitude
         )
         context.insert(store)
         return store

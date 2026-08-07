@@ -73,6 +73,7 @@ struct ServingDTO: Codable {
     var numbnessLevel: Int
     var spiceNote: String
     var priceYen: Int?
+    var currencyCode: String?
     var totalWeightGrams: Int?
     var pricePer100gYen: Int?
     var soupSurchargeYen: Int?
@@ -107,17 +108,17 @@ enum RestoreMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .append: return "追加"
-        case .replaceAll: return "全置換"
+        case .append: return String(localized: "追加")
+        case .replaceAll: return String(localized: "全置換")
         }
     }
 
     var explanation: String {
         switch self {
         case .append:
-            return "今ある記録を残したまま、バックアップの記録を足します。同じ記録は二重に入りません。"
+            return String(localized: "今ある記録を残したまま、バックアップの記録を足します。同じ記録は二重に入りません。")
         case .replaceAll:
-            return "今ある記録・写真をすべて消してから、バックアップの内容に入れ替えます。取り消せません。"
+            return String(localized: "今ある記録・写真をすべて消してから、バックアップの内容に入れ替えます。取り消せません。")
         }
     }
 }
@@ -153,15 +154,15 @@ enum BackupError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAPackage:
-            return "このファイルは麻辣湯ログのバックアップとして読み取れませんでした。"
+            return String(localized: "このファイルは麻辣湯ログのバックアップとして読み取れませんでした。")
         case .databaseMissing:
-            return "バックアップの中にデータ本体が見つかりませんでした。"
+            return String(localized: "バックアップの中にデータ本体が見つかりませんでした。")
         case .unsupportedVersion(let version):
-            return "このバックアップ（形式 v\(version)）は、今のアプリでは開けません。アプリを更新してください。"
+            return String(localized: "このバックアップ（形式 v\(version)）は、今のアプリでは開けません。アプリを更新してください。")
         case .decodeFailed(let detail):
-            return "バックアップの読み取りに失敗しました。（\(detail)）"
+            return String(localized: "バックアップの読み取りに失敗しました。（\(detail)）")
         case .writeFailed(let detail):
-            return "バックアップの書き出しに失敗しました。（\(detail)）"
+            return String(localized: "バックアップの書き出しに失敗しました。（\(detail)）")
         }
     }
 }

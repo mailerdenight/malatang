@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "麻辣燙紀錄";
+"CFBundleName" = "麻辣燙紀錄";
+"NSCameraUsageDescription" = "用來拍攝麻辣燙照片並加入紀錄。即使不允許，也能使用紀錄功能。";
+"NSLocationWhenInUseUsageDescription" = "用來搜尋目前位置附近的店家。即使不允許，也能手動輸入店名並使用地圖搜尋。";
+"NSPhotoLibraryUsageDescription" = "用來從照片圖庫選擇麻辣燙照片並加入紀錄。即使不允許，也能使用紀錄功能。";
+"UTTypeDescription" = "麻辣燙紀錄備份";
+"Malatang Log Backup" = "麻辣燙紀錄備份";

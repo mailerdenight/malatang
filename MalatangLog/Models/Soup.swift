@@ -34,8 +34,12 @@ final class Soup {
 }
 
 extension Soup {
+    var localizedDisplayName: String {
+        AppLocalization.masterName(name, isCustom: isCustom)
+    }
+
     var searchHaystack: String {
-        ([name, reading] + aliases).joined(separator: " ")
+        ([name, localizedDisplayName, reading] + aliases).joined(separator: " ")
     }
 
     func matches(_ query: String) -> Bool {

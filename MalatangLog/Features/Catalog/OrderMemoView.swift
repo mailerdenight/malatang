@@ -13,14 +13,19 @@ struct OrderMemoView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
-                bigRow(label: "スープ", value: serving.soup?.name ?? "未設定")
+                bigRow(
+                    label: "スープ",
+                    value: serving.soup?.localizedDisplayName ?? String(localized: "未設定")
+                )
                 levelRow
                 if serving.spiceNote.isEmpty == false {
                     bigRow(label: "店の表記", value: serving.spiceNote)
                 }
                 bigRow(
                     label: "麺",
-                    value: serving.noodles.isEmpty ? "未設定" : serving.noodles.map(\.name).joined(separator: "、")
+                    value: serving.noodles.isEmpty
+                        ? String(localized: "未設定")
+                        : AppLocalization.list(serving.noodles.map(\.localizedDisplayName))
                 )
                 ingredientBlock
                 actions
@@ -37,7 +42,7 @@ struct OrderMemoView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(serving.storeDisplayName)
+            Text(verbatim: serving.storeDisplayName)
                 .font(Theme.title(26))
                 .foregroundStyle(Theme.text)
             Text("\(serving.date.formatted(date: .abbreviated, time: .omitted)) の一杯")
@@ -48,10 +53,10 @@ struct OrderMemoView: View {
 
     private func bigRow(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.secondary)
-            Text(value)
+            Text(verbatim: value)
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(Theme.text)
                 .fixedSize(horizontal: false, vertical: true)
@@ -69,7 +74,7 @@ struct OrderMemoView: View {
 
     private func levelColumn(title: String, value: Int, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.secondary)
             HStack(spacing: 6) {
@@ -85,7 +90,9 @@ struct OrderMemoView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title) 5段階中\(value)")
+        .accessibilityLabel(
+            String(localized: "\(AppLocalization.string(title)) 5段階中\(value)")
+        )
     }
 
     private var ingredientBlock: some View {
@@ -99,7 +106,7 @@ struct OrderMemoView: View {
             } else {
                 FlowLayout(spacing: 8) {
                     ForEach(serving.ingredients, id: \.uuid) { ingredient in
-                        Text(ingredient.name)
+                        Text(verbatim: ingredient.localizedDisplayName)
                             .font(.system(size: 22, weight: .semibold))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)

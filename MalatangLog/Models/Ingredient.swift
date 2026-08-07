@@ -15,7 +15,7 @@ enum IngredientCategory: String, CaseIterable, Codable, Identifiable {
     case custom = "自分で追加"
 
     var id: String { rawValue }
-    var displayName: String { rawValue }
+    var displayName: String { AppLocalization.string(rawValue) }
 }
 
 @Model
@@ -61,6 +61,10 @@ final class Ingredient {
 }
 
 extension Ingredient {
+    var localizedDisplayName: String {
+        AppLocalization.masterName(name, isCustom: isCustom)
+    }
+
     var category: IngredientCategory {
         get { IngredientCategory(rawValue: categoryRaw) ?? .other }
         set { categoryRaw = newValue.rawValue }
@@ -68,7 +72,7 @@ extension Ingredient {
 
     /// 検索対象文字列（表示名・読み・別名）
     var searchHaystack: String {
-        ([name, reading] + aliases).joined(separator: " ")
+        ([name, localizedDisplayName, reading] + aliases).joined(separator: " ")
     }
 
     func matches(_ query: String) -> Bool {

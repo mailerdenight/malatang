@@ -4,6 +4,7 @@ import SwiftData
 struct ServingDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(CurrencySettings.self) private var currencySettings
 
     @Bindable var serving: Serving
 
@@ -88,7 +89,10 @@ struct ServingDetailView: View {
     private var orderCard: some View {
         SectionCard(title: "注文内容") {
             VStack(alignment: .leading, spacing: 12) {
-                labeledRow("スープ", serving.soup?.name ?? "未設定")
+                labeledRow(
+                    "スープ",
+                    serving.soup?.localizedDisplayName ?? String(localized: "未設定")
+                )
                 HStack(spacing: 20) {
                     levelBadge(title: "辛さ", value: serving.spiceLevel, symbol: "flame.fill")
                     levelBadge(title: "痺れ", value: serving.numbnessLevel, symbol: "bolt.fill")
@@ -96,7 +100,12 @@ struct ServingDetailView: View {
                 if serving.spiceNote.isEmpty == false {
                     labeledRow("店の表記", serving.spiceNote)
                 }
-                labeledRow("麺", serving.noodles.isEmpty ? "未設定" : serving.noodles.map(\.name).joined(separator: "、"))
+                labeledRow(
+                    "麺",
+                    serving.noodles.isEmpty
+                        ? String(localized: "未設定")
+                        : AppLocalization.list(serving.noodles.map(\.localizedDisplayName))
+                )
                 VStack(alignment: .leading, spacing: 6) {
                     Text("具材").font(.caption).foregroundStyle(Theme.subtleText)
                     if serving.ingredients.isEmpty {
@@ -104,7 +113,7 @@ struct ServingDetailView: View {
                     } else {
                         FlowLayout(spacing: 6) {
                             ForEach(serving.ingredients, id: \.uuid) { ingredient in
-                                Text(ingredient.name)
+                                Text(verbatim: ingredient.localizedDisplayName)
                                     .font(.footnote)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
@@ -124,7 +133,7 @@ struct ServingDetailView: View {
                     StarRatingView(rating: .constant(serving.rating), isEditable: false, size: 20)
                 }
                 if serving.memo.isEmpty == false {
-                    Text(serving.memo)
+                    Text(SampleDataService.displayMemo(for: serving))
                         .font(.body)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -140,10 +149,16 @@ struct ServingDetailView: View {
     private var numbersCard: some View {
         SectionCard(title: "価格・重量") {
             VStack(alignment: .leading, spacing: 8) {
-                if let price = serving.priceYen { labeledRow("価格", "\(price)円") }
+                if let price = serving.priceYen {
+                    labeledRow("価格", currencySettings.format(price, code: serving.currencyCode))
+                }
                 if let weight = serving.totalWeightGrams { labeledRow("重量", "\(weight)g") }
-                if let unit = serving.pricePer100gYen { labeledRow("100g単価", "\(unit)円") }
-                if let surcharge = serving.soupSurchargeYen { labeledRow("スープ追加", "\(surcharge)円") }
+                if let unit = serving.pricePer100gYen {
+                    labeledRow("100g単価", currencySettings.format(unit, code: serving.currencyCode))
+                }
+                if let surcharge = serving.soupSurchargeYen {
+                    labeledRow("スープ追加", currencySettings.format(surcharge, code: serving.currencyCode))
+                }
             }
         }
     }
@@ -229,15 +244,15 @@ struct ServingDetailView: View {
 
     private func labeledRow(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption).foregroundStyle(Theme.subtleText)
-            Text(value).font(.body)
+            Text(LocalizedStringKey(label)).font(.caption).foregroundStyle(Theme.subtleText)
+            Text(verbatim: value).font(.body)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func levelBadge(title: String, value: Int, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(Theme.subtleText)
+            Text(LocalizedStringKey(title)).font(.caption).foregroundStyle(Theme.subtleText)
             HStack(spacing: 3) {
                 ForEach(1...5, id: \.self) { level in
                     Image(systemName: symbol)
@@ -250,7 +265,9 @@ struct ServingDetailView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title) 5段階中\(value)")
+        .accessibilityLabel(
+            String(localized: "\(AppLocalization.string(title)) 5段階中\(value)")
+        )
     }
 
     // MARK: - 操作
@@ -287,7 +304,7 @@ struct StoreActionRow: View {
                     Text(store.displayName)
                         .font(.body.weight(.semibold))
                     if store.address.isEmpty == false {
-                        Text(store.address)
+                        Text(verbatim: SampleDataService.displayAddress(for: store))
                             .font(.caption)
                             .foregroundStyle(Theme.subtleText)
                             .lineLimit(1)
@@ -329,12 +346,14 @@ struct StoreActionRow: View {
         } label: {
             VStack(spacing: 2) {
                 Image(systemName: symbol)
-                Text(title).font(.caption2)
+                Text(LocalizedStringKey(title)).font(.caption2)
             }
             .frame(width: Theme.minTapTarget, height: Theme.minTapTarget)
             .background(Theme.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
         }
-        .accessibilityLabel("\(store.displayName)を\(title)で開く")
+        .accessibilityLabel(
+            String(localized: "\(store.displayName)を\(AppLocalization.string(title))で開く")
+        )
     }
 
     private func open(_ provider: MapLauncher.Provider, isDirections: Bool) {

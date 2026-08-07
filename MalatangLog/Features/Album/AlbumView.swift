@@ -21,17 +21,18 @@ struct AlbumView: View {
             let components = calendar.dateComponents([.year, .month], from: serving.date)
             let year = components.year ?? 0
             let month = components.month ?? 0
-            let key = "\(year)年\(month)月"
+            let key = String(format: "%04d-%02d", year, month)
             if monthStarts[key] == nil {
                 monthStarts[key] = calendar.date(from: components) ?? serving.date
             }
             return key
         }
 
-        return grouped.map { title, items in
-            AlbumMonthSection(
-                title: title,
-                startDate: monthStarts[title] ?? .distantPast,
+        return grouped.map { key, items in
+            let startDate = monthStarts[key] ?? .distantPast
+            return AlbumMonthSection(
+                title: startDate.formatted(.dateTime.year().month(.wide)),
+                startDate: startDate,
                 servings: sortOrder.apply(to: items)
             )
         }
@@ -159,8 +160,8 @@ private enum AlbumSortOrder: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .newest: return "新しい順"
-        case .oldest: return "古い順"
+        case .newest: return String(localized: "新しい順")
+        case .oldest: return String(localized: "古い順")
         }
     }
 

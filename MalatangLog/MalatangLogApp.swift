@@ -4,7 +4,8 @@ import SwiftData
 @main
 struct MalatangLogApp: App {
 
-    @AppStorage("appearancePreference") private var appearancePreference = AppearancePreference.light.rawValue
+    @State private var appearanceSettings = AppearanceSettings.shared
+    @State private var currencySettings = CurrencySettings.shared
     @State private var purchaseManager = PurchaseManager()
     private let containerResult: Result<ModelContainer, Error>
 
@@ -24,10 +25,10 @@ struct MalatangLogApp: App {
                 }
             }
             .environment(purchaseManager)
+            .environment(appearanceSettings)
+            .environment(currencySettings)
             .tint(Theme.primary)
-            .preferredColorScheme(
-                AppearancePreference(rawValue: appearancePreference)?.colorScheme
-            )
+            .preferredColorScheme(appearanceSettings.preferredColorScheme)
         }
     }
 }

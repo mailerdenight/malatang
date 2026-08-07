@@ -21,6 +21,7 @@ final class ServingDraft {
     var ingredients: [Ingredient] = []
 
     var priceText: String = ""
+    var currencyCode: String = AppCurrency.defaultCode()
     var weightText: String = ""
     var pricePer100gText: String = ""
     var soupSurchargeText: String = ""
@@ -54,6 +55,7 @@ final class ServingDraft {
         draft.noodles = serving.noodles
         draft.ingredients = serving.ingredients
         draft.priceText = serving.priceYen.map(String.init) ?? ""
+        draft.currencyCode = AppCurrency.normalizedCode(serving.currencyCode)
         draft.weightText = serving.totalWeightGrams.map(String.init) ?? ""
         draft.pricePer100gText = serving.pricePer100gYen.map(String.init) ?? ""
         draft.soupSurchargeText = serving.soupSurchargeYen.map(String.init) ?? ""
@@ -73,23 +75,27 @@ final class ServingDraft {
 
     var soupError: String? {
         guard didAttemptSave, soup == nil else { return nil }
-        return "スープを選んでください。"
+        return String(localized: "スープを選んでください。")
     }
 
     var noodleError: String? {
         guard didAttemptSave, noodles.isEmpty else { return nil }
-        return "麺を選んでください。麺を入れていないときは「麺なし」を選びます。"
+        return String(localized: "麺を選んでください。麺を入れていないときは「麺なし」を選びます。")
     }
 
     var priceError: String? {
         guard priceText.isEmpty == false else { return nil }
-        guard let value = Int(priceText) else { return "価格は数字で入力してください。" }
-        guard (0...99_999).contains(value) else { return "価格は0〜99,999円の範囲で入力してください。" }
+        guard let value = Int(priceText) else { return String(localized: "価格は数字で入力してください。") }
+        guard (0...99_999).contains(value) else {
+            return String(localized: "価格は0〜99,999円の範囲で入力してください。")
+        }
         return nil
     }
 
     var memoError: String? {
-        memo.count > 1_000 ? "メモは1,000文字以内で入力してください。（現在\(memo.count)文字）" : nil
+        memo.count > 1_000
+            ? String(localized: "メモは1,000文字以内で入力してください。（現在\(memo.count)文字）")
+            : nil
     }
 
     var isValid: Bool {
@@ -139,6 +145,7 @@ final class ServingDraft {
         serving.noodles = noodles
         serving.ingredients = ingredients
         serving.priceYen = intValue(priceText)
+        serving.currencyCode = AppCurrency.normalizedCode(currencyCode)
         serving.totalWeightGrams = intValue(weightText)
         serving.pricePer100gYen = intValue(pricePer100gText)
         serving.soupSurchargeYen = intValue(soupSurchargeText)

@@ -37,10 +37,13 @@ struct IngredientPickerView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if selection.isEmpty == false {
-                        SectionCard(title: "選択中", subtitle: "\(selection.count)件") {
+                        SectionCard(
+                            title: "選択中",
+                            subtitle: String(localized: "\(selection.count)件")
+                        ) {
                             FlowLayout(spacing: 8) {
                                 ForEach(selection, id: \.uuid) { ingredient in
-                                    TagChip(title: ingredient.name, isSelected: true) {
+                                    TagChip(title: ingredient.localizedDisplayName, isSelected: true) {
                                         toggle(ingredient)
                                     }
                                 }
@@ -84,7 +87,7 @@ struct IngredientPickerView: View {
                                 FlowLayout(spacing: 8) {
                                     ForEach(filtered.filter { $0.category == group }, id: \.uuid) { ingredient in
                                         TagChip(
-                                            title: ingredient.name,
+                                            title: ingredient.localizedDisplayName,
                                             isSelected: selection.contains(ingredient),
                                             isPinned: ingredient.isPinned
                                         ) {
@@ -124,7 +127,9 @@ struct IngredientPickerView: View {
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                TagChip(title: "すべて", isSelected: category == nil) { category = nil }
+                TagChip(title: String(localized: "すべて"), isSelected: category == nil) {
+                    category = nil
+                }
                 ForEach(IngredientCategory.allCases) { item in
                     TagChip(title: item.displayName, isSelected: category == item) {
                         category = (category == item) ? nil : item
@@ -168,7 +173,9 @@ struct IngredientPickerView: View {
             duplicateNotice = nil
             if selection.contains(ingredient) == false { selection.append(ingredient) }
         case .existing(let ingredient):
-            duplicateNotice = "「\(ingredient.name)」はすでにあります。重複しないよう既存の候補を選択しました。"
+            duplicateNotice = String(
+                localized: "「\(ingredient.localizedDisplayName)」はすでにあります。重複しないよう既存の候補を選択しました。"
+            )
             if selection.contains(ingredient) == false { selection.append(ingredient) }
         }
         query = ""

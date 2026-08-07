@@ -19,6 +19,8 @@ final class Serving {
 
     /// 税込合計。未入力は nil。
     var priceYen: Int?
+    /// priceYen の実際の通貨。未リリース前の名称互換のため、金額プロパティ名は維持する。
+    var currencyCode: String = AppCurrency.defaultCode()
     /// 具材の合計g。未入力は nil。
     var totalWeightGrams: Int?
     /// 100gあたり単価。未入力は nil。
@@ -62,6 +64,7 @@ final class Serving {
         numbnessLevel: Int = 0,
         spiceNote: String = "",
         priceYen: Int? = nil,
+        currencyCode: String = AppCurrency.defaultCode(),
         totalWeightGrams: Int? = nil,
         pricePer100gYen: Int? = nil,
         soupSurchargeYen: Int? = nil,
@@ -79,6 +82,7 @@ final class Serving {
         self.numbnessLevel = numbnessLevel
         self.spiceNote = spiceNote
         self.priceYen = priceYen
+        self.currencyCode = AppCurrency.normalizedCode(currencyCode)
         self.totalWeightGrams = totalWeightGrams
         self.pricePer100gYen = pricePer100gYen
         self.soupSurchargeYen = soupSurchargeYen
@@ -97,19 +101,19 @@ extension Serving {
     /// 注文メモに出す一行サマリー。
     var orderSummary: String {
         var parts: [String] = []
-        if let soup { parts.append(soup.name) }
-        parts.append("辛さ\(spiceLevel)・痺れ\(numbnessLevel)")
+        if let soup { parts.append(soup.localizedDisplayName) }
+        parts.append(String(localized: "辛さ\(spiceLevel)・痺れ\(numbnessLevel)"))
         if noodles.isEmpty == false {
-            parts.append(noodles.map(\.name).joined(separator: "＋"))
+            parts.append(AppLocalization.list(noodles.map(\.localizedDisplayName)))
         }
         if ingredients.isEmpty == false {
-            parts.append(ingredients.map(\.name).joined(separator: "、"))
+            parts.append(AppLocalization.list(ingredients.map(\.localizedDisplayName)))
         }
         return parts.joined(separator: " / ")
     }
 
     var storeDisplayName: String {
-        guard let store else { return "店舗未設定" }
+        guard let store else { return String(localized: "店舗未設定") }
         return store.displayName
     }
 
@@ -123,6 +127,7 @@ extension Serving {
             numbnessLevel: numbnessLevel,
             spiceNote: spiceNote,
             priceYen: priceYen,
+            currencyCode: currencyCode,
             totalWeightGrams: totalWeightGrams,
             pricePer100gYen: pricePer100gYen,
             soupSurchargeYen: soupSurchargeYen,

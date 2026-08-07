@@ -34,7 +34,7 @@ final class PurchaseManager {
     }
 
     var displayedPrice: String {
-        product?.displayPrice ?? "価格を確認"
+        product?.displayPrice ?? String(localized: "価格を確認")
     }
 
     func loadProduct() async {
@@ -48,10 +48,10 @@ final class PurchaseManager {
                 for: [PurchaseConfiguration.unlimitedProductID]
             ).first
             if product == nil {
-                errorMessage = "商品情報を読み込めませんでした。通信状態を確認して、もう一度お試しください。"
+                errorMessage = String(localized: "商品情報を読み込めませんでした。通信状態を確認して、もう一度お試しください。")
             }
         } catch {
-            errorMessage = "商品情報を読み込めませんでした。通信状態を確認して、もう一度お試しください。"
+            errorMessage = String(localized: "商品情報を読み込めませんでした。通信状態を確認して、もう一度お試しください。")
         }
     }
 
@@ -69,11 +69,11 @@ final class PurchaseManager {
             switch try await product.purchase() {
             case .success(let result):
                 guard case .verified(let transaction) = result else {
-                    errorMessage = "購入情報を確認できませんでした。"
+                    errorMessage = String(localized: "購入情報を確認できませんでした。")
                     return .cancelled
                 }
                 guard transaction.productID == PurchaseConfiguration.unlimitedProductID else {
-                    errorMessage = "購入した商品を確認できませんでした。"
+                    errorMessage = String(localized: "購入した商品を確認できませんでした。")
                     return .cancelled
                 }
                 isUnlocked = transaction.revocationDate == nil
@@ -88,7 +88,7 @@ final class PurchaseManager {
                 return .cancelled
             }
         } catch {
-            errorMessage = "購入を完了できませんでした。もう一度お試しください。"
+            errorMessage = String(localized: "購入を完了できませんでした。もう一度お試しください。")
             return .cancelled
         }
     }
@@ -103,7 +103,7 @@ final class PurchaseManager {
             await refreshEntitlements()
             return isUnlocked
         } catch {
-            errorMessage = "購入を復元できませんでした。通信状態を確認して、もう一度お試しください。"
+            errorMessage = String(localized: "購入を復元できませんでした。通信状態を確認して、もう一度お試しください。")
             return false
         }
     }

@@ -2,15 +2,67 @@ import Foundation
 import MapKit
 
 struct StoreSearchResult: Identifiable, Hashable {
-    let id = UUID()
+    let id: String
     let name: String
     let address: String
     let latitude: Double?
     let longitude: Double?
 
+    init(
+        name: String,
+        address: String,
+        latitude: Double?,
+        longitude: Double?
+    ) {
+        self.name = name
+        self.address = address
+        self.latitude = latitude
+        self.longitude = longitude
+        id = Self.stableID(
+            name: name,
+            address: address,
+            latitude: latitude,
+            longitude: longitude
+        )
+    }
+
+    static func stableID(
+        name: String,
+        address: String,
+        latitude: Double?,
+        longitude: Double?
+    ) -> String {
+        let normalizedName = normalizedIdentityComponent(name)
+        if let latitude, let longitude {
+            let coordinateKey = String(
+                format: "%.5f|%.5f",
+                locale: identityLocale,
+                latitude,
+                longitude
+            )
+            return "\(normalizedName)|\(coordinateKey)"
+        }
+        let normalizedAddress = normalizedIdentityComponent(address)
+        return "\(normalizedName)|\(normalizedAddress)"
+    }
+
+    static func normalizedIdentityComponent(_ value: String) -> String {
+        value
+            .folding(
+                options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                locale: identityLocale
+            )
+            .lowercased(with: identityLocale)
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+    }
+
+    private static let identityLocale = Locale(identifier: "en_US_POSIX")
+
     var coordinate: CLLocationCoordinate2D? {
         guard let latitude, let longitude else { return nil }
-        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        return CLLocationCoordinate2DIsValid(coordinate) ? coordinate : nil
     }
 
     func distance(from location: CLLocation?) -> CLLocationDistance? {
@@ -39,21 +91,31 @@ final class StoreSearchService {
     }
 
     private(set) var state: State = .idle
+    /// 再検索中も直前のピンを維持するため、表示用の結果を状態とは分けて保持する。
+    private(set) var results: [StoreSearchResult] = []
     private var currentSearches: [MKLocalSearch] = []
     private var searchGeneration = UUID()
 
-    /// 漢字名とカタカナ名の両方を検索し、表記が違う店舗も拾う。
+    /// 自動検索では普遍的な表記に端末言語の現地表記だけを足し、過剰な並列検索を避ける。
     static let defaultKeyword = "麻辣湯"
-    static let defaultKeywords = ["麻辣湯", "マーラータン"]
+    static let defaultKeywords = [
+        "malatang",
+        "mala tang",
+        "麻辣烫",
+        "麻辣燙",
+        "麻辣湯"
+    ]
+    static let maximumSearchDistance: CLLocationDistance = 25_000
+    static let duplicateCoordinateTolerance: CLLocationDistance = 25
 
-    func searchNearby(coordinate: CLLocationCoordinate2D, keyword: String = defaultKeyword) {
+    func searchNearby(coordinate: CLLocationCoordinate2D, keyword: String? = nil) {
         let region = MKCoordinateRegion(
             center: coordinate,
             latitudinalMeters: 3_000,
             longitudinalMeters: 3_000
         )
         perform(
-            keywords: keywords(for: keyword),
+            keywords: Self.keywords(for: keyword),
             region: region,
             center: coordinate,
             maximumDistance: 3_500
@@ -63,44 +125,41 @@ final class StoreSearchService {
     /// ユーザーが移動・拡大縮小した現在の地図範囲を中心に検索し直す。
     func searchVisibleRegion(
         _ region: MKCoordinateRegion,
-        keyword: String = defaultKeyword
+        keyword: String? = nil
     ) {
         let center = region.center
-        let northEdge = CLLocation(
-            latitude: center.latitude + region.span.latitudeDelta / 2,
-            longitude: center.longitude
-        )
-        let eastEdge = CLLocation(
-            latitude: center.latitude,
-            longitude: center.longitude + region.span.longitudeDelta / 2
-        )
-        let centerLocation = CLLocation(latitude: center.latitude, longitude: center.longitude)
-        let radius = hypot(
-            centerLocation.distance(from: northEdge),
-            centerLocation.distance(from: eastEdge)
-        ) * 1.15
 
         perform(
-            keywords: keywords(for: keyword),
-            region: region,
+            keywords: Self.keywords(for: keyword),
+            region: Self.clampedRegion(region),
             center: center,
-            maximumDistance: radius
+            maximumDistance: Self.searchRadius(for: region)
         )
     }
 
     func search(keyword: String, near coordinate: CLLocationCoordinate2D? = nil) {
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else {
+            results = []
             state = .idle
             return
         }
         let region: MKCoordinateRegion?
         if let coordinate {
-            region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 20_000, longitudinalMeters: 20_000)
+            region = MKCoordinateRegion(
+                center: coordinate,
+                latitudinalMeters: Self.maximumSearchDistance * 2,
+                longitudinalMeters: Self.maximumSearchDistance * 2
+            )
         } else {
             region = nil
         }
-        perform(keywords: keywords(for: trimmed), region: region)
+        perform(
+            keywords: [trimmed],
+            region: region,
+            center: coordinate,
+            maximumDistance: coordinate == nil ? nil : Self.maximumSearchDistance
+        )
     }
 
     func cancel() {
@@ -111,6 +170,7 @@ final class StoreSearchService {
 
     func reset() {
         cancel()
+        results = []
         state = .idle
     }
 
@@ -121,6 +181,11 @@ final class StoreSearchService {
         maximumDistance: CLLocationDistance? = nil
     ) {
         cancel()
+        guard keywords.isEmpty == false else {
+            results = []
+            state = .idle
+            return
+        }
         state = .searching
 
         let generation = UUID()
@@ -150,7 +215,9 @@ final class StoreSearchService {
 
                     self.currentSearches.removeAll()
                     guard receivedResponse else {
-                        self.state = .failed("店舗を検索できませんでした。通信状態と検索語を確認してください。")
+                        self.state = .failed(
+                            String(localized: "店舗を検索できませんでした。通信状態と検索語を確認してください。")
+                        )
                         return
                     }
                     let items = Self.makeResults(
@@ -158,21 +225,42 @@ final class StoreSearchService {
                         center: center,
                         maximumDistance: maximumDistance
                     )
+                    self.results = items
                     self.state = items.isEmpty ? .empty : .results(items)
                 }
             }
         }
     }
 
-    private func keywords(for keyword: String) -> [String] {
-        let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty || trimmed == Self.defaultKeyword {
-            return Self.defaultKeywords
+    /// nilは自動周辺検索、値ありはユーザーが明示した単一検索語として扱う。
+    static func keywords(for keyword: String?) -> [String] {
+        guard let keyword else {
+            return automaticKeywords(
+                preferredLanguageIdentifier: Bundle.main.preferredLocalizations.first ?? "en"
+            )
         }
-        return [trimmed]
+        let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? [] : [trimmed]
     }
 
-    private static func makeResults(
+    static func automaticKeywords(preferredLanguageIdentifier: String) -> [String] {
+        let localKeyword: String?
+        switch preferredLanguageIdentifier {
+        case let language where language.hasPrefix("ja"):
+            localKeyword = "マーラータン"
+        case let language where language.hasPrefix("ko"):
+            localKeyword = "마라탕"
+        case let language where language.hasPrefix("vi"):
+            localKeyword = "lẩu mala"
+        case let language where language.hasPrefix("th"):
+            localKeyword = "หม่าล่าทั่ง"
+        default:
+            localKeyword = nil
+        }
+        return defaultKeywords + [localKeyword].compactMap { $0 }
+    }
+
+    static func makeResults(
         from mapItems: [MKMapItem],
         center: CLLocationCoordinate2D?,
         maximumDistance: CLLocationDistance?
@@ -180,9 +268,7 @@ final class StoreSearchService {
         let centerLocation = center.map {
             CLLocation(latitude: $0.latitude, longitude: $0.longitude)
         }
-        var seen = Set<String>()
-
-        let results = mapItems.compactMap { item -> StoreSearchResult? in
+        let candidates = mapItems.compactMap { item -> StoreSearchResult? in
             if let centerLocation,
                let maximumDistance,
                let resultLocation = item.placemark.location,
@@ -190,26 +276,9 @@ final class StoreSearchService {
                 return nil
             }
 
-            let name = item.name ?? "名称不明"
-            let address = formattedAddress(item.placemark)
+            let name = item.name ?? String(localized: "名称不明")
+            let address = MapAddressFormatter.string(from: item.placemark)
             let coordinate = item.placemark.location?.coordinate
-            let normalizedName = name.folding(
-                options: [.caseInsensitive, .widthInsensitive],
-                locale: .current
-            )
-            let normalizedAddress = address.folding(
-                options: [.caseInsensitive, .widthInsensitive],
-                locale: .current
-            )
-            let locationFallback = [
-                coordinate.map { String(format: "%.5f", $0.latitude) } ?? "",
-                coordinate.map { String(format: "%.5f", $0.longitude) } ?? ""
-            ].joined(separator: "|")
-            let key = normalizedAddress.isEmpty
-                ? "\(normalizedName)|\(locationFallback)"
-                : "\(normalizedName)|\(normalizedAddress)"
-            guard seen.insert(key).inserted else { return nil }
-
             return StoreSearchResult(
                 name: name,
                 address: address,
@@ -217,6 +286,7 @@ final class StoreSearchService {
                 longitude: coordinate?.longitude
             )
         }
+        let results = removingDuplicates(from: candidates)
 
         guard let centerLocation else { return results }
         return results.sorted {
@@ -230,14 +300,83 @@ final class StoreSearchService {
         }
     }
 
+    static func removingDuplicates(
+        from candidates: [StoreSearchResult]
+    ) -> [StoreSearchResult] {
+        var seenIDs = Set<String>()
+        var unique: [StoreSearchResult] = []
+
+        for candidate in candidates {
+            guard seenIDs.insert(candidate.id).inserted else { continue }
+            guard unique.contains(where: { likelySamePlace($0, candidate) }) == false else {
+                continue
+            }
+            unique.append(candidate)
+        }
+        return unique
+    }
+
+    static func likelySamePlace(
+        _ lhs: StoreSearchResult,
+        _ rhs: StoreSearchResult
+    ) -> Bool {
+        if lhs.id == rhs.id { return true }
+
+        let sameName = StoreSearchResult.normalizedIdentityComponent(lhs.name)
+            == StoreSearchResult.normalizedIdentityComponent(rhs.name)
+        guard let lhsCoordinate = lhs.coordinate,
+              let rhsCoordinate = rhs.coordinate else {
+            let lhsAddress = StoreSearchResult.normalizedIdentityComponent(lhs.address)
+            let rhsAddress = StoreSearchResult.normalizedIdentityComponent(rhs.address)
+            return sameName && lhsAddress.isEmpty == false && lhsAddress == rhsAddress
+        }
+
+        let distance = CLLocation(
+            latitude: lhsCoordinate.latitude,
+            longitude: lhsCoordinate.longitude
+        ).distance(from: CLLocation(
+            latitude: rhsCoordinate.latitude,
+            longitude: rhsCoordinate.longitude
+        ))
+
+        return sameName && distance <= duplicateCoordinateTolerance
+    }
+
+    static func clampedRegion(_ region: MKCoordinateRegion) -> MKCoordinateRegion {
+        let maximumDiameter = maximumSearchDistance * 2
+        let dimensions = estimatedDimensions(of: region)
+
+        return MKCoordinateRegion(
+            center: region.center,
+            latitudinalMeters: min(dimensions.height, maximumDiameter),
+            longitudinalMeters: min(dimensions.width, maximumDiameter)
+        )
+    }
+
+    static func searchRadius(for region: MKCoordinateRegion) -> CLLocationDistance {
+        let dimensions = estimatedDimensions(of: region)
+        return min(
+            hypot(dimensions.height / 2, dimensions.width / 2) * 1.15,
+            maximumSearchDistance
+        )
+    }
+
+    private static func estimatedDimensions(
+        of region: MKCoordinateRegion
+    ) -> (height: CLLocationDistance, width: CLLocationDistance) {
+        let latitudeDelta = min(abs(region.span.latitudeDelta), 180)
+        let longitudeDelta = min(abs(region.span.longitudeDelta), 360)
+        let latitudeRadians = region.center.latitude * .pi / 180
+        let metersPerLongitudeDegree = 111_320 * max(abs(cos(latitudeRadians)), 0.000_001)
+
+        return (
+            height: max(latitudeDelta * 111_132, 1),
+            width: max(longitudeDelta * metersPerLongitudeDegree, 1)
+        )
+    }
+
+    /// 旧APIを呼ぶ箇所とテストの互換用。
     static func formattedAddress(_ placemark: MKPlacemark) -> String {
-        var parts: [String] = []
-        if let administrativeArea = placemark.administrativeArea { parts.append(administrativeArea) }
-        if let locality = placemark.locality { parts.append(locality) }
-        if let subLocality = placemark.subLocality { parts.append(subLocality) }
-        if let thoroughfare = placemark.thoroughfare { parts.append(thoroughfare) }
-        if let subThoroughfare = placemark.subThoroughfare { parts.append(subThoroughfare) }
-        let joined = parts.joined()
-        return joined.isEmpty ? (placemark.title ?? "") : joined
+        MapAddressFormatter.string(from: placemark)
     }
 }
