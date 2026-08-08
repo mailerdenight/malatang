@@ -22,7 +22,7 @@ load_ci_config() {
   : "${AUTO_UPLOAD:=true}"
   : "${TEAM_ID:=3U97PCNG99}"
   : "${BUNDLE_ID:=com.malatanglog.app}"
-  : "${TESTFLIGHT_INTERNAL_ONLY:=true}"
+  : "${TESTFLIGHT_INTERNAL_ONLY:=false}"
   : "${SKIP_GIT_SYNC:=false}"
 
   if [[ "$PROJECT_PATH" != /* ]]; then
