@@ -279,7 +279,7 @@ struct SettingsView: View {
             Text("利用プラン")
         } footer: {
             if purchaseManager.isUnlocked {
-                Text("店舗数・記録数・バックアップの上限はありません。")
+                Text("新規店舗数の制限はありません。バックアップの書き出し・復元も利用できます。")
             } else {
                 let remaining = StoreAccessPolicy.remainingFreeStores(
                     visitedStoreCount: visitedStoreCount

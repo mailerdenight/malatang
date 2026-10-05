@@ -125,12 +125,10 @@
 "店舗の辛さ表記（例：中辛、3辣）" = "Label pedas restoran (mis. Sedang, Level 3)";
 "店舗を保存できませんでした" = "Restoran Tidak Dapat Disimpan";
 "店舗名を検索" = "Cari Nama Restoran";
-"店舗数・記録数の上限はありません。" = "Jumlah restoran dan catatan tidak dibatasi.";
 "座標" = "Koordinat";
 "復元方式" = "Metode Pemulihan";
 "撮る" = "Ambil Foto";
 "新しい一杯を記録" = "Catat Mangkuk Baru";
-"既存店舗への記録追加、閲覧、編集、バックアップは引き続き無料です。" = "Menambah catatan untuk restoran yang ada, melihat, mengedit, dan mencadangkan tetap gratis.";
 "日時" = "Tanggal & Waktu";
 "明るさ" = "Tampilan";
 "書き出したファイル（.malaarchive）は「ファイル」アプリやiCloud Driveなど、お好きな場所に保存できます。" = "Simpan file .malaarchive yang diekspor di mana saja, seperti app File atau iCloud Drive.";
@@ -152,7 +150,6 @@
 "無制限版は解除済みです" = "Versi Tanpa Batas Sudah Terbuka";
 "無制限版をご利用中です" = "Versi Tanpa Batas Aktif";
 "無料版" = "Versi Gratis";
-"無料版では5店舗まで記録できます。買い切りで、店舗数と記録数がずっと無制限になります。" = "Versi gratis mencakup 5 restoran. Sekali beli untuk restoran dan catatan tanpa batas selamanya.";
 "無料版の利用状況" = "Penggunaan Versi Gratis";
 "現在の記録と写真がすべて削除されます。" = "Semua catatan dan foto saat ini akan dihapus.";
 "現在地の利用を許可する" = "Izinkan Penggunaan Lokasi Saat Ini";
@@ -535,12 +532,11 @@
 "位置情報は店舗検索と経路表示のときだけ使い、常時追跡はしません。" = "Lokasi hanya digunakan untuk mencari restoran dan menampilkan petunjuk arah, tanpa pelacakan terus-menerus.";
 "行動分析SDKは入れていません。" = "Aplikasi ini tidak memakai SDK analitik perilaku.";
 "購入はAppleのStoreKitが処理し、カード情報をアプリで取得しません。" = "Pembelian diproses oleh Apple StoreKit. Aplikasi tidak menerima informasi kartu Anda.";
-"店舗数・記録数が無制限" = "Restoran & Catatan Tanpa Batas";
-"分析・地図・バックアップもすべて利用可能" = "Termasuk Statistik, Peta, dan Cadangan";
+"新規店舗数の制限を解除" = "Hapus batas jumlah restoran baru";
+"バックアップの書き出し・復元が利用可能" = "Ekspor dan pemulihan cadangan tersedia";
 "月額料金なしの買い切り" = "Sekali Beli, Tanpa Biaya Bulanan";
 "お知らせ" = "Pemberitahuan";
 "購入が完了しました" = "Pembelian Selesai";
-"店舗数と記録数が無制限になりました。" = "Restoran dan catatan kini tanpa batas.";
 "購入は保留中です" = "Pembelian Tertunda";
 "承認後、自動的に無制限版が利用できるようになります。" = "Versi Tanpa Batas akan aktif otomatis setelah disetujui.";
 "購入を復元しました" = "Pembelian Dipulihkan";
@@ -596,7 +592,7 @@
 "重量・評価・メモ・味の詳細" = "Berat, penilaian, memo, dan detail rasa";
 "バックアップの書き出しは無制限版で使えます。金額は購入画面で確認できます。" = "Ekspor cadangan tersedia di versi Tanpa Batas. Lihat harga di layar pembelian.";
 "バックアップからの復元は無制限版で使えます。押すと購入画面で金額を確認できます。" = "Pemulihan dari cadangan tersedia di versi Tanpa Batas. Ketuk untuk melihat harga di layar pembelian.";
-"無料版では5店舗まで記録できます。買い切りで、店舗数・記録数・バックアップがずっと無制限になります。" = "Versi gratis mencakup 5 restoran. Sekali beli untuk restoran, catatan, dan cadangan tanpa batas selamanya.";
+"無料版は5店舗まで。既存店舗への記録追加は無制限です。買い切りで新規店舗数の制限を解除し、バックアップの書き出し・復元も利用できます。" = "Versi gratis mendukung hingga 5 restoran. Penambahan catatan untuk restoran yang sudah ada tidak dibatasi. Pembelian sekali bayar menghapus batas jumlah restoran baru dan mengaktifkan ekspor serta pemulihan cadangan.";
 "既存店舗への記録追加、閲覧、編集は引き続き無料です。バックアップは無制限版で使えます。" = "Menambah catatan untuk restoran yang ada, melihat, dan mengedit tetap gratis. Cadangan tersedia di versi Tanpa Batas.";
-"店舗数・記録数・バックアップが無制限になりました。" = "Restoran, catatan, dan cadangan kini tanpa batas.";
-"店舗数・記録数・バックアップの上限はありません。" = "Jumlah restoran, catatan, dan cadangan tidak dibatasi.";
+"新規店舗数の制限が解除され、バックアップの書き出し・復元が利用できるようになりました。" = "Batas jumlah restoran baru telah dihapus. Ekspor dan pemulihan cadangan kini tersedia.";
+"新規店舗数の制限はありません。バックアップの書き出し・復元も利用できます。" = "Jumlah restoran baru tidak dibatasi. Ekspor dan pemulihan cadangan juga tersedia.";

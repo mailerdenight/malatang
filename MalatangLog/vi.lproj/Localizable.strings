@@ -125,12 +125,10 @@
 "店舗の辛さ表記（例：中辛、3辣）" = "Mức cay của quán (VD: cay vừa, 3辣)";
 "店舗を保存できませんでした" = "Không thể lưu cửa hàng";
 "店舗名を検索" = "Tìm tên cửa hàng";
-"店舗数・記録数の上限はありません。" = "Không giới hạn số cửa hàng và bản ghi.";
 "座標" = "Tọa độ";
 "復元方式" = "Cách khôi phục";
 "撮る" = "Chụp ảnh";
 "新しい一杯を記録" = "Ghi lại tô mới";
-"既存店舗への記録追加、閲覧、編集、バックアップは引き続き無料です。" = "Thêm bản ghi cho cửa hàng đã lưu, xem, sửa và sao lưu vẫn miễn phí.";
 "日時" = "Ngày giờ";
 "明るさ" = "Độ sáng";
 "書き出したファイル（.malaarchive）は「ファイル」アプリやiCloud Driveなど、お好きな場所に保存できます。" = "Bạn có thể lưu tệp đã xuất (.malaarchive) ở bất kỳ đâu, như ứng dụng Tệp hoặc iCloud Drive.";
@@ -152,7 +150,6 @@
 "無制限版は解除済みです" = "Đã mở khóa bản không giới hạn";
 "無制限版をご利用中です" = "Bạn đang dùng bản không giới hạn";
 "無料版" = "Bản miễn phí";
-"無料版では5店舗まで記録できます。買い切りで、店舗数と記録数がずっと無制限になります。" = "Bản miễn phí lưu được tối đa 5 cửa hàng. Chỉ cần mua một lần để dùng không giới hạn cửa hàng và bản ghi.";
 "無料版の利用状況" = "Tình trạng bản miễn phí";
 "現在の記録と写真がすべて削除されます。" = "Mọi bản ghi và ảnh hiện tại sẽ bị xóa.";
 "現在地の利用を許可する" = "Cho phép dùng vị trí hiện tại";
@@ -453,7 +450,6 @@
 "商品情報を読み込めませんでした。通信状態を確認して、もう一度お試しください。" = "Không thể tải thông tin sản phẩm. Hãy kiểm tra kết nối và thử lại.";
 "店舗を検索できませんでした。通信状態と検索語を確認してください。" = "Không thể tìm cửa hàng. Hãy kiểm tra kết nối và từ khóa tìm kiếm.";
 "店舗を選ぶ（任意）" = "Chọn cửa hàng (không bắt buộc)";
-"店舗数と記録数が無制限になりました。" = "Số cửa hàng và bản ghi giờ đây không còn giới hạn.";
 "店舗未設定" = "Chưa chọn cửa hàng";
 "承認後、自動的に無制限版が利用できるようになります。" = "Sau khi được phê duyệt, bản không giới hạn sẽ tự động được kích hoạt.";
 "新しい一杯" = "Tô mới";
@@ -522,7 +518,7 @@
 "円" = "¥";
 "写真" = "Ảnh";
 "写真も含めて1つのファイルにまとめます" = "Gộp dữ liệu và ảnh vào một tệp";
-"分析・地図・バックアップもすべて利用可能" = "Dùng đầy đủ Phân tích, Bản đồ và Sao lưu";
+"バックアップの書き出し・復元が利用可能" = "Có thể xuất và khôi phục bản sao lưu";
 "合計重量（g）" = "Tổng khối lượng (g)";
 "回" = "lần";
 "地図で探す" = "Tìm trên bản đồ";
@@ -537,7 +533,7 @@
 "店名を入力" = "Nhập tên cửa hàng";
 "店舗名や絞り込みを変えてみてください。" = "Hãy thử tên cửa hàng khác hoặc thay đổi bộ lọc.";
 "店舗情報" = "Thông tin cửa hàng";
-"店舗数・記録数が無制限" = "Không giới hạn cửa hàng và bản ghi";
+"新規店舗数の制限を解除" = "Bỏ giới hạn số cửa hàng mới";
 "復元した写真" = "Ảnh đã khôi phục";
 "復元しました" = "Đã khôi phục";
 "必須" = "Bắt buộc";
@@ -611,7 +607,7 @@
 "重量・評価・メモ・味の詳細" = "Khối lượng, đánh giá, ghi chú và chi tiết hương vị";
 "バックアップの書き出しは無制限版で使えます。金額は購入画面で確認できます。" = "Xuất bản sao lưu có trong bản Không giới hạn. Xem giá ở màn hình mua hàng.";
 "バックアップからの復元は無制限版で使えます。押すと購入画面で金額を確認できます。" = "Khôi phục từ bản sao lưu có trong bản Không giới hạn. Nhấn để xem giá trên màn hình mua.";
-"無料版では5店舗まで記録できます。買い切りで、店舗数・記録数・バックアップがずっと無制限になります。" = "Bản miễn phí lưu được tối đa 5 cửa hàng. Chỉ cần mua một lần để dùng không giới hạn cửa hàng, bản ghi và sao lưu mãi mãi.";
+"無料版は5店舗まで。既存店舗への記録追加は無制限です。買い切りで新規店舗数の制限を解除し、バックアップの書き出し・復元も利用できます。" = "Bản miễn phí hỗ trợ tối đa 5 cửa hàng. Bạn có thể thêm bản ghi cho cửa hàng đã có không giới hạn. Mua một lần để bỏ giới hạn số cửa hàng mới và sử dụng tính năng xuất và khôi phục bản sao lưu.";
 "既存店舗への記録追加、閲覧、編集は引き続き無料です。バックアップは無制限版で使えます。" = "Thêm bản ghi cho cửa hàng đã có, xem và chỉnh sửa vẫn miễn phí. Sao lưu có trong bản Không giới hạn.";
-"店舗数・記録数・バックアップが無制限になりました。" = "Cửa hàng, bản ghi và sao lưu giờ đây không còn giới hạn.";
-"店舗数・記録数・バックアップの上限はありません。" = "Không giới hạn cửa hàng, bản ghi hoặc sao lưu.";
+"新規店舗数の制限が解除され、バックアップの書き出し・復元が利用できるようになりました。" = "Đã bỏ giới hạn số cửa hàng mới. Bạn có thể xuất và khôi phục bản sao lưu.";
+"新規店舗数の制限はありません。バックアップの書き出し・復元も利用できます。" = "Không giới hạn số cửa hàng mới. Bạn cũng có thể xuất và khôi phục bản sao lưu.";

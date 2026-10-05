@@ -126,12 +126,10 @@
 "店舗の辛さ表記（例：中辛、3辣）" = "Schärfeangabe des Restaurants (z. B. Mittel, Stufe 3)";
 "店舗を保存できませんでした" = "Restaurant konnte nicht gesichert werden";
 "店舗名を検索" = "Restaurantnamen suchen";
-"店舗数・記録数の上限はありません。" = "Restaurants und Einträge sind unbegrenzt.";
 "座標" = "Koordinaten";
 "復元方式" = "Wiederherstellungsart";
 "撮る" = "Fotografieren";
 "新しい一杯を記録" = "Neue Portion erfassen";
-"既存店舗への記録追加、閲覧、編集、バックアップは引き続き無料です。" = "Neue Portionen bei vorhandenen Restaurants, Anzeigen, Bearbeiten und Backups bleiben kostenlos.";
 "日時" = "Datum und Uhrzeit";
 "明るさ" = "Darstellung";
 "書き出したファイル（.malaarchive）は「ファイル」アプリやiCloud Driveなど、お好きな場所に保存できます。" = "Die exportierte .malaarchive-Datei lässt sich etwa in Dateien oder iCloud Drive speichern.";
@@ -153,7 +151,6 @@
 "無制限版は解除済みです" = "Unbegrenzt ist bereits freigeschaltet";
 "無制限版をご利用中です" = "Unbegrenzt aktiv";
 "無料版" = "Kostenlose Version";
-"無料版では5店舗まで記録できます。買い切りで、店舗数と記録数がずっと無制限になります。" = "Kostenlos sind 5 Restaurants enthalten. Ein Einmalkauf schaltet dauerhaft unbegrenzte Restaurants und Einträge frei.";
 "無料版の利用状況" = "Nutzung der kostenlosen Version";
 "現在の記録と写真がすべて削除されます。" = "Alle aktuellen Einträge und Fotos werden gelöscht.";
 "現在地の利用を許可する" = "Standortzugriff erlauben";
@@ -536,12 +533,11 @@
 "位置情報は店舗検索と経路表示のときだけ使い、常時追跡はしません。" = "Der Standort wird nur für Restaurantsuche und Routen verwendet, nie dauerhaft verfolgt.";
 "行動分析SDKは入れていません。" = "Die App enthält kein Analyse-SDK.";
 "購入はAppleのStoreKitが処理し、カード情報をアプリで取得しません。" = "Apples StoreKit verarbeitet Käufe. Die App erhält keine Kartendaten.";
-"店舗数・記録数が無制限" = "Unbegrenzte Restaurants und Einträge";
-"分析・地図・バックアップもすべて利用可能" = "Analyse, Karten und Backups inklusive";
+"新規店舗数の制限を解除" = "Limit für neue Restaurants aufheben";
+"バックアップの書き出し・復元が利用可能" = "Backups exportieren und wiederherstellen";
 "月額料金なしの買い切り" = "Einmalkauf ohne Abo";
 "お知らせ" = "Hinweis";
 "購入が完了しました" = "Kauf abgeschlossen";
-"店舗数と記録数が無制限になりました。" = "Restaurants und Einträge sind jetzt unbegrenzt.";
 "購入は保留中です" = "Kauf ausstehend";
 "承認後、自動的に無制限版が利用できるようになります。" = "Nach der Freigabe wird „Unbegrenzt“ automatisch aktiviert.";
 "購入を復元しました" = "Kauf wiederhergestellt";
@@ -597,7 +593,7 @@
 "重量・評価・メモ・味の詳細" = "Gewicht, Bewertung, Notiz und Geschmacksdetails";
 "バックアップの書き出しは無制限版で使えます。金額は購入画面で確認できます。" = "Backup-Export ist in der Unbegrenzt-Version enthalten. Den Preis findest du auf dem Kaufbildschirm.";
 "バックアップからの復元は無制限版で使えます。押すと購入画面で金額を確認できます。" = "Backup-Wiederherstellung ist in der Unbegrenzt-Version enthalten. Tippe, um den Preis auf dem Kaufbildschirm zu prüfen.";
-"無料版では5店舗まで記録できます。買い切りで、店舗数・記録数・バックアップがずっと無制限になります。" = "Kostenlos sind 5 Restaurants enthalten. Ein Einmalkauf schaltet Restaurants, Einträge und Backups dauerhaft unbegrenzt frei.";
+"無料版は5店舗まで。既存店舗への記録追加は無制限です。買い切りで新規店舗数の制限を解除し、バックアップの書き出し・復元も利用できます。" = "Die kostenlose Version umfasst bis zu 5 Restaurants. Einträge für vorhandene Restaurants sind unbegrenzt. Ein Einmalkauf hebt das Limit für neue Restaurants auf und ermöglicht den Export und die Wiederherstellung von Backups.";
 "既存店舗への記録追加、閲覧、編集は引き続き無料です。バックアップは無制限版で使えます。" = "Neue Portionen bei vorhandenen Restaurants, Anzeigen und Bearbeiten bleiben kostenlos. Backups sind in der Unbegrenzt-Version enthalten.";
-"店舗数・記録数・バックアップが無制限になりました。" = "Restaurants, Einträge und Backups sind jetzt unbegrenzt.";
-"店舗数・記録数・バックアップの上限はありません。" = "Restaurants, Einträge und Backups sind unbegrenzt.";
+"新規店舗数の制限が解除され、バックアップの書き出し・復元が利用できるようになりました。" = "Das Limit für neue Restaurants wurde aufgehoben. Backups können jetzt exportiert und wiederhergestellt werden.";
+"新規店舗数の制限はありません。バックアップの書き出し・復元も利用できます。" = "Neue Restaurants können unbegrenzt hinzugefügt werden. Auch der Export und die Wiederherstellung von Backups sind verfügbar.";

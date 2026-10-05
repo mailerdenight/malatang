@@ -8,7 +8,7 @@
       "internalID": "69ACBB95-42CB-48FD-9C51-A812E5AC25D3",
       "localizations": [
         {
-          "description": "店舗数・記録数・バックアップの上限を永久に解除します。",
+          "description": "無料版は5店舗まで。既存店舗への記録追加は無制限です。買い切りで新規店舗数の制限を解除し、バックアップの書き出し・復元も利用できます。",
           "displayName": "麻辣湯ログ 無制限版",
           "locale": "ja_JP"
         }

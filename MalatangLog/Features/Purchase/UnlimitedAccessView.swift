@@ -21,14 +21,14 @@ struct UnlimitedAccessView: View {
                         Text("もっと麻辣湯を記録しよう")
                             .font(.largeTitle.bold())
                             .foregroundStyle(Theme.text)
-                        Text("無料版では5店舗まで記録できます。買い切りで、店舗数・記録数・バックアップがずっと無制限になります。")
+                        Text("無料版は5店舗まで。既存店舗への記録追加は無制限です。買い切りで新規店舗数の制限を解除し、バックアップの書き出し・復元も利用できます。")
                             .foregroundStyle(Theme.subtleText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     VStack(alignment: .leading, spacing: 14) {
-                        feature("店舗数・記録数が無制限", symbol: "infinity")
-                        feature("分析・地図・バックアップもすべて利用可能", symbol: "chart.bar.xaxis")
+                        feature("新規店舗数の制限を解除", symbol: "infinity")
+                        feature("バックアップの書き出し・復元が利用可能", symbol: "chart.bar.xaxis")
                         feature("月額料金なしの買い切り", symbol: "checkmark.seal")
                     }
                     .padding(18)
@@ -138,7 +138,7 @@ struct UnlimitedAccessView: View {
         case .purchased:
             notice = PurchaseNotice(
                 title: String(localized: "購入が完了しました"),
-                message: String(localized: "店舗数・記録数・バックアップが無制限になりました。")
+                message: String(localized: "新規店舗数の制限が解除され、バックアップの書き出し・復元が利用できるようになりました。")
             )
         case .pending:
             notice = PurchaseNotice(

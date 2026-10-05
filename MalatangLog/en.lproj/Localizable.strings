@@ -126,12 +126,10 @@
 "店舗の辛さ表記（例：中辛、3辣）" = "Store’s spice label (e.g. Medium, Level 3)";
 "店舗を保存できませんでした" = "Couldn’t Save Store";
 "店舗名を検索" = "Search Store Names";
-"店舗数・記録数の上限はありません。" = "There is no limit on stores or logs.";
 "座標" = "Coordinates";
 "復元方式" = "Restore Method";
 "撮る" = "Take Photo";
 "新しい一杯を記録" = "Log a New Bowl";
-"既存店舗への記録追加、閲覧、編集、バックアップは引き続き無料です。" = "Adding bowls to existing stores, viewing, editing, and backups remain free.";
 "日時" = "Date & Time";
 "明るさ" = "Appearance";
 "書き出したファイル（.malaarchive）は「ファイル」アプリやiCloud Driveなど、お好きな場所に保存できます。" = "Save the exported .malaarchive file anywhere you like, such as Files or iCloud Drive.";
@@ -153,7 +151,6 @@
 "無制限版は解除済みです" = "Unlimited Is Already Unlocked";
 "無制限版をご利用中です" = "Unlimited Active";
 "無料版" = "Free Plan";
-"無料版では5店舗まで記録できます。買い切りで、店舗数と記録数がずっと無制限になります。" = "The free plan includes 5 stores. A one-time purchase unlocks unlimited stores and logs.";
 "無料版の利用状況" = "Free Plan Usage";
 "現在の記録と写真がすべて削除されます。" = "All current logs and photos will be deleted.";
 "現在地の利用を許可する" = "Allow Location Access";
@@ -536,12 +533,11 @@
 "位置情報は店舗検索と経路表示のときだけ使い、常時追跡はしません。" = "Location is used only to find stores and show directions. It is never tracked in the background.";
 "行動分析SDKは入れていません。" = "The app contains no analytics SDK.";
 "購入はAppleのStoreKitが処理し、カード情報をアプリで取得しません。" = "Apple’s StoreKit handles purchases. The app never receives your card details.";
-"店舗数・記録数が無制限" = "Unlimited Stores and Logs";
-"分析・地図・バックアップもすべて利用可能" = "Includes Insights, Maps, and Backups";
+"新規店舗数の制限を解除" = "Remove the limit on new stores";
+"バックアップの書き出し・復元が利用可能" = "Backup export and restore available";
 "月額料金なしの買い切り" = "One-Time Purchase, No Subscription";
 "お知らせ" = "Notice";
 "購入が完了しました" = "Purchase Complete";
-"店舗数と記録数が無制限になりました。" = "Unlimited stores and logs are now available.";
 "購入は保留中です" = "Purchase Pending";
 "承認後、自動的に無制限版が利用できるようになります。" = "Unlimited will unlock automatically after approval.";
 "購入を復元しました" = "Purchase Restored";
@@ -597,7 +593,7 @@
 "重量・評価・メモ・味の詳細" = "Weight, rating, memo, and taste details";
 "バックアップの書き出しは無制限版で使えます。金額は購入画面で確認できます。" = "Backup export is included in Unlimited. Check the price on the purchase screen.";
 "バックアップからの復元は無制限版で使えます。押すと購入画面で金額を確認できます。" = "Backup restore is included in the Unlimited version. Tap to see the price on the purchase screen.";
-"無料版では5店舗まで記録できます。買い切りで、店舗数・記録数・バックアップがずっと無制限になります。" = "The free plan includes 5 stores. A one-time purchase unlocks unlimited stores, logs, and backups forever.";
+"無料版は5店舗まで。既存店舗への記録追加は無制限です。買い切りで新規店舗数の制限を解除し、バックアップの書き出し・復元も利用できます。" = "The free version supports up to 5 stores. Adding logs to existing stores is unlimited. A one-time purchase removes the limit on new stores and enables backup export and restore.";
 "既存店舗への記録追加、閲覧、編集は引き続き無料です。バックアップは無制限版で使えます。" = "Adding bowls to existing stores, viewing, and editing remain free. Backups are included in the Unlimited version.";
-"店舗数・記録数・バックアップが無制限になりました。" = "Unlimited stores, logs, and backups are now available.";
-"店舗数・記録数・バックアップの上限はありません。" = "There is no limit on stores, logs, or backups.";
+"新規店舗数の制限が解除され、バックアップの書き出し・復元が利用できるようになりました。" = "The limit on new stores has been removed. Backup export and restore are now available.";
+"新規店舗数の制限はありません。バックアップの書き出し・復元も利用できます。" = "There is no limit on new stores. Backup export and restore are also available.";
