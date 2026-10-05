@@ -33,7 +33,7 @@ MalatangLog.xcodeproj
 2. Xcode で `MalatangLog` ターゲット → **Signing & Capabilities**
    - **Team** に自分の Apple ID を選ぶ（無料アカウントで可。未登録なら Xcode → Settings → Accounts で追加）
    - **Automatically manage signing** にチェック
-   - **Bundle Identifier** は `com.malatanglog.app`。他人と衝突したら `com.自分の名前.malatanglog` などに変更
+   - **Bundle Identifier** は `com.malatanglog.app` に確定済み。既存アプリとの整合性を保つため、このIDで署名
 3. 画面上部の実行先で **iPhone 16e** を選ぶ
 4. ⌘R で実行
 5. 初回は iPhone 側で **設定 → 一般 → VPNとデバイス管理 → デベロッパApp** から自分の証明書を信頼
@@ -103,7 +103,8 @@ Supporting/Info.plist   権限文言・Googleマップスキーム・.malaarchiv
 ## 6. リリース前に残っている作業
 
 - [x] App アイコン画像
-- [ ] Bundle Identifier を自分のものに確定し、App Store Connect にアプリを登録
+- [x] Bundle Identifier を `com.malatanglog.app` に確定（XcodeプロジェクトのDebug / Release設定で確認）
+- [ ] App Store Connect のアプリ登録状態を確認（GitHubのコードだけでは確認できません）
 - [ ] スクリーンショット7枚（仕様書 9.2 の構成）
 - [ ] 9言語のApp Store説明・キーワード・スクリーンショットを登録し、ネイティブレビュー
 - [ ] App Store のプライバシー回答
