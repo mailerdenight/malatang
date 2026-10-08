@@ -20,6 +20,12 @@ struct PhotoStore {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
+    /// Isolated storage for restore regression tests.
+    init(directory: URL) throws {
+        self.directory = directory
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
     func fileURL(for id: String) -> URL {
         directory.appendingPathComponent("\(id).jpg")
     }
