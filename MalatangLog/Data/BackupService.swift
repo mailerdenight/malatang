@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UIKit
 
 /// .malaarchive の書き出しと取り込み。
 /// 単一ファイルに見せるため FileWrapper のシリアライズ表現を使う（中身は database.json + images/）。
@@ -193,21 +194,75 @@ enum BackupService {
                 images[String(name.dropLast(4))] = content
             }
         }
-        return Inspection(payload: payload, images: images)
+        let inspection = Inspection(payload: payload, images: images)
+        try validate(inspection)
+        return inspection
     }
 
     // MARK: - 復元
+
+    /// Failure injection is internal to the module; production uses the real disk/save operations.
+    struct RestoreOperations {
+        var photos: PhotoStore = .shared
+        var save: (ModelContext) throws -> Void = { try $0.save() }
+        var writePhoto: (Data, String, PhotoStore) throws -> Void = { data, id, photos in
+            guard photos.writeRaw(data, id: id) else {
+                throw BackupError.restoreFailed("Photo write failed")
+            }
+        }
+    }
 
     @discardableResult
     static func restore(
         inspection: Inspection,
         mode: RestoreMode,
-        context: ModelContext
+        context: ModelContext,
+        operations: RestoreOperations = RestoreOperations()
     ) throws -> RestoreResult {
         let payload = inspection.payload
+        try validate(inspection)
+
+        // Preserve unrelated pending edits before establishing the rollback boundary.
+        // Failure here occurs before any restore mutation or photo write.
+        if context.hasChanges { try context.save() }
+        let autosaveEnabled = context.autosaveEnabled
+        context.autosaveEnabled = false
+        defer { context.autosaveEnabled = autosaveEnabled }
+
+        var newPhotoIDs: Set<String> = []
+        var committed = false
+        defer {
+            if !committed {
+                context.rollback()
+                for id in newPhotoIDs { operations.photos.delete(id) }
+            }
+        }
+
+        // Fetch everything before deleting anything; a fetch failure is never an empty database.
+        let oldServings = try context.fetch(FetchDescriptor<Serving>())
+        let oldStores = try context.fetch(FetchDescriptor<Store>())
+        let oldSoups = try context.fetch(FetchDescriptor<Soup>())
+        let oldNoodles = try context.fetch(FetchDescriptor<Noodle>())
+        let oldIngredients = try context.fetch(FetchDescriptor<Ingredient>())
+
+        // Build maps before mutation, with duplicate UUIDs reported rather than trapping.
+        var storeMap = try modelMap(mode == .replaceAll ? [] : oldStores, id: { $0.uuid })
+        var soupMap = try modelMap(mode == .replaceAll ? [] : oldSoups, id: { $0.uuid })
+        var noodleMap = try modelMap(mode == .replaceAll ? [] : oldNoodles, id: { $0.uuid })
+        var ingredientMap = try modelMap(mode == .replaceAll ? [] : oldIngredients, id: { $0.uuid })
+        try validateReferences(
+            payload,
+            stores: Set(storeMap.keys), soups: Set(soupMap.keys),
+            noodles: Set(noodleMap.keys), ingredients: Set(ingredientMap.keys)
+        )
 
         if mode == .replaceAll {
-            try wipeAll(context: context)
+            // No intermediate save, photo deletion, or favorite change.
+            for item in oldServings { context.delete(item) }
+            for item in oldStores { context.delete(item) }
+            for item in oldSoups { context.delete(item) }
+            for item in oldNoodles { context.delete(item) }
+            for item in oldIngredients { context.delete(item) }
         }
 
         var result = RestoreResult(
@@ -216,23 +271,6 @@ enum BackupService {
         )
 
         // --- マスター ---
-        var storeMap = Dictionary(
-            uniqueKeysWithValues: ((try? context.fetch(FetchDescriptor<Store>())) ?? [])
-                .map { ($0.uuid, $0) }
-        )
-        var soupMap = Dictionary(
-            uniqueKeysWithValues: ((try? context.fetch(FetchDescriptor<Soup>())) ?? [])
-                .map { ($0.uuid, $0) }
-        )
-        var noodleMap = Dictionary(
-            uniqueKeysWithValues: ((try? context.fetch(FetchDescriptor<Noodle>())) ?? [])
-                .map { ($0.uuid, $0) }
-        )
-        var ingredientMap = Dictionary(
-            uniqueKeysWithValues: ((try? context.fetch(FetchDescriptor<Ingredient>())) ?? [])
-                .map { ($0.uuid, $0) }
-        )
-
         for dto in payload.stores where storeMap[dto.uuid] == nil {
             let store = Store(
                 uuid: dto.uuid, name: dto.name, branch: dto.branch, address: dto.address,
@@ -243,11 +281,6 @@ enum BackupService {
             storeMap[dto.uuid] = store
             result.addedStores += 1
         }
-        for dto in payload.stores {
-            guard let store = storeMap[dto.uuid], let isFavorite = dto.isFavorite else { continue }
-            FavoriteStoreService.shared.set(store, isFavorite: isFavorite)
-        }
-
         for dto in payload.soups where soupMap[dto.uuid] == nil {
             let soup = Soup(
                 uuid: dto.uuid, name: dto.name, reading: dto.reading,
@@ -285,9 +318,8 @@ enum BackupService {
         }
 
         // --- 記録 ---
-        let existingServingIDs = Set(
-            ((try? context.fetch(FetchDescriptor<Serving>())) ?? []).map(\.uuid)
-        )
+        let existingServingIDs = Set(mode == .replaceAll ? [] : oldServings.map(\.uuid))
+        var restoredPhotoIDs: [String: String] = [:]
 
         for dto in payload.servings {
             guard existingServingIDs.contains(dto.uuid) == false else {
@@ -298,13 +330,19 @@ enum BackupService {
             var photoID: String?
             if let originalID = dto.photoID {
                 if let data = inspection.images[originalID] {
-                    if PhotoStore.shared.writeRaw(data, id: originalID) {
-                        photoID = originalID
-                        result.restoredPhotos += 1
+                    if let stagedID = restoredPhotoIDs[originalID] {
+                        photoID = stagedID
                     } else {
-                        result.missingPhotos += 1
+                        // Never overwrite a photo belonging to an existing record, even on append.
+                        var stagedID = UUID().uuidString
+                        while operations.photos.exists(stagedID) { stagedID = UUID().uuidString }
+                        newPhotoIDs.insert(stagedID)
+                        try operations.writePhoto(data, stagedID, operations.photos)
+                        restoredPhotoIDs[originalID] = stagedID
+                        photoID = stagedID
                     }
-                } else if PhotoStore.shared.exists(originalID) {
+                    result.restoredPhotos += 1
+                } else if mode == .append && operations.photos.exists(originalID) {
                     photoID = originalID
                 } else {
                     result.missingPhotos += 1
@@ -346,24 +384,73 @@ enum BackupService {
             result.addedServings += 1
         }
 
-        try context.save()
+        // Deletions and insertions are committed together. On error, defer rolls back
+        // the database and removes only newly written photos; originals were never touched.
+        try operations.save(context)
+        committed = true
+
+        // These nonthrowing operations only run after the database commit.
+        if mode == .replaceAll { FavoriteStoreService.shared.removeAll() }
+        for dto in payload.stores {
+            guard let store = storeMap[dto.uuid], let isFavorite = dto.isFavorite else { continue }
+            FavoriteStoreService.shared.set(store, isFavorite: isFavorite)
+        }
+        if mode == .replaceAll {
+            operations.photos.removeOrphans(referencedIDs: Set(restoredPhotoIDs.values))
+        }
         return result
     }
 
-    static func wipeAll(context: ModelContext) throws {
-        let servings = (try? context.fetch(FetchDescriptor<Serving>())) ?? []
-        for serving in servings {
-            PhotoStore.shared.delete(serving.photoID)
-            context.delete(serving)
+    private static func modelMap<T>(_ values: [T], id: (T) -> UUID) throws -> [UUID: T] {
+        var result: [UUID: T] = [:]
+        for value in values {
+            guard result.updateValue(value, forKey: id(value)) == nil else {
+                throw BackupError.decodeFailed("Duplicate UUID")
+            }
         }
-        for item in (try? context.fetch(FetchDescriptor<Store>())) ?? [] { context.delete(item) }
-        for item in (try? context.fetch(FetchDescriptor<Soup>())) ?? [] { context.delete(item) }
-        for item in (try? context.fetch(FetchDescriptor<Noodle>())) ?? [] { context.delete(item) }
-        for item in (try? context.fetch(FetchDescriptor<Ingredient>())) ?? [] { context.delete(item) }
-        try context.save()
-        FavoriteStoreService.shared.removeAll()
-        PhotoStore.shared.removeOrphans(referencedIDs: [])
+        return result
     }
+
+    private static func validate(_ inspection: Inspection) throws {
+        let payload = inspection.payload
+        guard payload.formatVersion > 0, payload.formatVersion <= BackupFormat.currentVersion else {
+            throw BackupError.unsupportedVersion(payload.formatVersion)
+        }
+        _ = try modelMap(payload.stores, id: { $0.uuid })
+        _ = try modelMap(payload.soups, id: { $0.uuid })
+        _ = try modelMap(payload.noodles, id: { $0.uuid })
+        _ = try modelMap(payload.ingredients, id: { $0.uuid })
+        _ = try modelMap(payload.servings, id: { $0.uuid })
+        for id in payload.servings.compactMap(\.photoID) {
+            guard !id.isEmpty, id != ".", id != "..",
+                  !id.contains("/"), !id.contains("\\"), !id.contains("\0") else {
+                throw BackupError.decodeFailed("Invalid photo ID")
+            }
+            if let data = inspection.images[id], UIImage(data: data) == nil {
+                throw BackupError.decodeFailed("Invalid photo data")
+            }
+        }
+        // Missing photos remain a reported warning, as in existing archives/export behavior.
+    }
+
+    private static func validateReferences(
+        _ payload: BackupPayload,
+        stores: Set<UUID>, soups: Set<UUID>, noodles: Set<UUID>, ingredients: Set<UUID>
+    ) throws {
+        let stores = stores.union(payload.stores.map(\.uuid))
+        let soups = soups.union(payload.soups.map(\.uuid))
+        let noodles = noodles.union(payload.noodles.map(\.uuid))
+        let ingredients = ingredients.union(payload.ingredients.map(\.uuid))
+        for serving in payload.servings {
+            guard serving.storeUUID.map({ stores.contains($0) }) ?? true,
+                  serving.soupUUID.map({ soups.contains($0) }) ?? true,
+                  Set(serving.noodleUUIDs).isSubset(of: noodles),
+                  Set(serving.ingredientUUIDs).isSubset(of: ingredients) else {
+                throw BackupError.decodeFailed("Missing related data")
+            }
+        }
+    }
+
 }
 
 enum AppInfo {

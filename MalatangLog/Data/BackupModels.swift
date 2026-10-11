@@ -150,6 +150,7 @@ enum BackupError: LocalizedError {
     case unsupportedVersion(Int)
     case decodeFailed(String)
     case writeFailed(String)
+    case restoreFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -161,6 +162,8 @@ enum BackupError: LocalizedError {
             return String(localized: "このバックアップ（形式 v\(version)）は、今のアプリでは開けません。アプリを更新してください。")
         case .decodeFailed(let detail):
             return String(localized: "バックアップの読み取りに失敗しました。（\(detail)）")
+        case .restoreFailed(let detail):
+            return String(localized: "バックアップの復元に失敗しました。（\(detail)）")
         case .writeFailed(let detail):
             return String(localized: "バックアップの書き出しに失敗しました。（\(detail)）")
         }
