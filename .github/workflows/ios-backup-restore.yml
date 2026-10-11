@@ -1,0 +1,102 @@
+name: iOS backup restore
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/safe-backup-restore']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-backup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backup-restore:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Xcode and select an available iPhone Simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults
+          ls -d /Applications/Xcode*.app | tee TestResults/installed-xcodes.txt
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version | tee TestResults/xcode-version.txt
+          xcodebuild -showsdks | tee TestResults/sdks.txt
+          xcrun simctl list --json > TestResults/simulators.json
+          python3 - <<'PY'
+          import json, os, subprocess
+          data = json.load(open("TestResults/simulators.json"))
+          sdk = tuple(int(n) for n in subprocess.check_output(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"], text=True).strip().split("."))
+          runtimes = sorted(
+              (r for r in data["runtimes"] if r.get("isAvailable") and r["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS")
+               and (17, 0) <= tuple(int(n) for n in r["version"].split(".")) <= sdk),
+              key=lambda r: tuple(int(n) for n in r["version"].split(".")), reverse=True)
+          for runtime in runtimes:
+              phones = [d for d in data["devices"].get(runtime["identifier"], [])
+                        if d.get("isAvailable") and d["name"].startswith("iPhone")]
+              if phones:
+                  device = next((d for d in phones if d["name"] == "iPhone 16"), phones[0])
+                  print(f'Selected {device["name"]}, iOS {runtime["version"]}, {device["udid"]}')
+                  with open(os.environ["GITHUB_ENV"], "a") as env:
+                      env.write(f'SIMULATOR_ID={device["udid"]}\n')
+                  break
+          else:
+              raise SystemExit("No available iOS iPhone Simulator")
+          PY
+          xcodebuild -list -project MalatangLog.xcodeproj | tee TestResults/schemes.txt
+      - name: Boot Simulator
+        run: |
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+      - name: Build application and unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing -project MalatangLog.xcodeproj -scheme MalatangLog \
+            -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath DerivedData -disableAutomaticPackageResolution \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM="" ONLY_ACTIVE_ARCH=YES 2>&1 | tee TestResults/build.log
+          find DerivedData/Build/Products -name "*.xctestrun" -exec plutil -p {} + | tee TestResults/test-configuration.txt
+          find DerivedData/Build/Products -name '*.storekit' -print | tee TestResults/storekit-resources.txt
+      - name: Run backup safety and compatibility checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild test-without-building -project MalatangLog.xcodeproj -scheme MalatangLog \
+            -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath DerivedData -resultBundlePath TestResults/BackupService.xcresult \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 480 -maximum-test-execution-time-allowance 480 \
+            -only-testing:MalatangLogTests/BackupServiceTests \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM="" ONLY_ACTIVE_ARCH=YES 2>&1 | tee TestResults/test.log
+      - name: Summarize results
+        if: always()
+        shell: bash
+        run: |
+          if [ -d TestResults/BackupService.xcresult ]; then
+            xcrun xcresulttool get test-results summary --path TestResults/BackupService.xcresult | tee TestResults/summary.json || true
+            xcrun xcresulttool export attachments --path TestResults/BackupService.xcresult --output-path TestResults/Attachments || true
+          fi
+          {
+            echo '### iOS backup restore'
+            echo 'Build, Xcode/Simulator inventory and BackupServiceTests logs are attached.'
+            if [ -f TestResults/summary.json ]; then
+              echo '```json'
+              cat TestResults/summary.json
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-backup-persistence-results
+          path: TestResults
+          retention-days: 14
