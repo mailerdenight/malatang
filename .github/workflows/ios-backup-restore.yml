@@ -3,7 +3,7 @@ name: iOS backup restore
 on:
   pull_request:
   push:
-    branches: [main, 'codex/safe-backup-restore']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -94,6 +94,20 @@ jobs:
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify all backup tests actually ran
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re
+          summary = json.load(open("TestResults/summary.json"))
+          source = open("MalatangLogTests/BackupServiceTests.swift").read()
+          expected = len(re.findall(r"func test\w+\(", source))
+          assert expected >= 16, f"Expected safety/compatibility coverage, found {expected} tests"
+          assert summary["totalTestCount"] == expected, summary
+          assert summary["passedTests"] == expected, summary
+          assert summary["failedTests"] == 0 and summary["skippedTests"] == 0, summary
+          print(f"All {expected} BackupServiceTests passed without skips")
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
