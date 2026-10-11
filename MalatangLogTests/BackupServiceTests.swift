@@ -140,17 +140,29 @@ final class BackupServiceTests: XCTestCase {
     private struct SafetyFixture {
         let context: ModelContext
         let photos: PhotoStore
+        let databaseURL: URL
         let oldPhotoID: String
         let oldPhoto: Data
         var inspection: BackupService.Inspection
     }
 
+    private func persistentContainer(at url: URL) throws -> ModelContainer {
+        let schema = Schema(versionedSchema: MalatangSchemaV1.self)
+        return try ModelContainer(
+            for: schema, migrationPlan: MalatangMigrationPlan.self,
+            configurations: ModelConfiguration(schema: schema, url: url)
+        )
+    }
+
     private func makeSafetyFixture() throws -> SafetyFixture {
-        let context = try makeContext()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let databaseURL = root.appendingPathComponent("test.store")
+        let context = ModelContext(try persistentContainer(at: databaseURL))
         let serving = try seedSampleData(context)
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let directory = root.appendingPathComponent("Photos")
         let photos = try PhotoStore(directory: directory)
-        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
         let favorites = FavoriteStoreService.shared.ids
         addTeardownBlock {
             FavoriteStoreService.shared.removeAll()
@@ -172,7 +184,7 @@ final class BackupServiceTests: XCTestCase {
             payload: payload, images: [oldPhotoID: try imageData(color: .blue)]
         )
         return SafetyFixture(
-            context: context, photos: photos, oldPhotoID: oldPhotoID,
+            context: context, photos: photos, databaseURL: databaseURL, oldPhotoID: oldPhotoID,
             oldPhoto: oldPhoto, inspection: inspection
         )
     }
@@ -210,6 +222,11 @@ final class BackupServiceTests: XCTestCase {
         // Verify persisted data independently of the context that performed rollback.
         let freshContext = ModelContext(fixture.context.container)
         XCTAssertEqual(try snapshot(freshContext), expected, file: file, line: line)
+        let reopenedContext = ModelContext(try persistentContainer(at: fixture.databaseURL))
+        XCTAssertEqual(try snapshot(reopenedContext), expected, file: file, line: line)
+        let persistedFavorites = Set((UserDefaults.standard.stringArray(forKey: "favoriteStoreUUIDs") ?? [])
+            .compactMap(UUID.init(uuidString:)))
+        XCTAssertEqual(persistedFavorites, favorites, file: file, line: line)
         XCTAssertEqual(fixture.photos.rawData(fixture.oldPhotoID), fixture.oldPhoto, file: file, line: line)
         XCTAssertEqual(FavoriteStoreService.shared.ids, favorites, file: file, line: line)
         XCTAssertEqual(
@@ -434,6 +451,50 @@ final class BackupServiceTests: XCTestCase {
             context: fixture.context, operations: operations
         ))
         try assertOriginalPreserved(fixture, snapshot: expected, favorites: favorites)
+    }
+
+    func testLegacyArchiveWithoutFavoriteFieldDecodesAndRestoresBothModes() throws {
+        for mode in [RestoreMode.append, .replaceAll] {
+            var fixture = try makeSafetyFixture()
+            fixture.inspection.payload.servings[0].uuid = UUID()
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            var json = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: encoder.encode(fixture.inspection.payload))
+                    as? [String: Any]
+            )
+            var stores = try XCTUnwrap(json["stores"] as? [[String: Any]])
+            for index in stores.indices { stores[index].removeValue(forKey: "isFavorite") }
+            json["stores"] = stores
+            let database = FileWrapper(regularFileWithContents: try JSONSerialization.data(withJSONObject: json))
+            let images = FileWrapper(directoryWithFileWrappers: [
+                "\(fixture.oldPhotoID).jpg": FileWrapper(
+                    regularFileWithContents: try XCTUnwrap(fixture.inspection.images[fixture.oldPhotoID])
+                )
+            ])
+            let wrapper = FileWrapper(directoryWithFileWrappers: [
+                BackupFormat.databaseFileName: database, BackupFormat.imagesFolderName: images
+            ])
+            let url = fixture.photos.directory.appendingPathComponent("legacy.malaarchive")
+            try XCTUnwrap(wrapper.serializedRepresentation).write(to: url)
+            let inspection = try BackupService.inspect(url: url)
+            XCTAssertNil(inspection.payload.stores[0].isFavorite)
+            var operations = BackupService.RestoreOperations()
+            operations.photos = fixture.photos
+            let result = try BackupService.restore(
+                inspection: inspection, mode: mode, context: fixture.context, operations: operations
+            )
+            XCTAssertEqual(result.addedServings, 1)
+            XCTAssertEqual(result.restoredPhotos, 1)
+            XCTAssertEqual(result.missingPhotos, 0)
+            let context = ModelContext(try persistentContainer(at: fixture.databaseURL))
+            let servings = try context.fetch(FetchDescriptor<Serving>())
+            XCTAssertEqual(servings.count, mode == .append ? 2 : 1)
+            let restored = try XCTUnwrap(servings.first { $0.uuid == inspection.payload.servings[0].uuid })
+            XCTAssertEqual(restored.memo, "復元後")
+            XCTAssertEqual(fixture.photos.rawData(restored.photoID), inspection.images[fixture.oldPhotoID])
+            XCTAssertEqual(FavoriteStoreService.shared.contains(restored.store), mode == .append)
+        }
     }
 
 }
